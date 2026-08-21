@@ -1,0 +1,11 @@
+﻿# Dependencias
+server/node_modules/
+
+# Secretos
+server/.env
+.env
+*.env
+
+# Sistema
+.DS_Store
+Thumbs.db
