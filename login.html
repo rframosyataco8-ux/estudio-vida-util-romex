@@ -3,82 +3,293 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ingresar · Romex QC</title>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<title>Welcome · Romex QC</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Roboto',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
-background:linear-gradient(135deg,#5b6cff 0%,#7b8cff 40%,#a8b4ff 100%);padding:20px}
-.card{display:flex;width:100%;max-width:920px;background:#fff;border-radius:20px;overflow:hidden;
-box-shadow:0 25px 60px rgba(40,50,120,.25);min-height:520px}
-.left{flex:1;padding:48px 40px;background:#eef1ff;display:flex;flex-direction:column;justify-content:center}
-.brand{font-size:14px;font-weight:700;color:#3d4db8;margin-bottom:32px;letter-spacing:.5px}
-.left h1{font-size:36px;font-weight:700;color:#1a237e;margin-bottom:8px;letter-spacing:1px}
-.left p{font-size:14px;color:#5c6bc0;margin-bottom:28px}
-label{display:block;font-size:12px;font-weight:500;color:#3949ab;margin-bottom:6px;margin-top:16px}
-input[type=text],input[type=password]{width:100%;border:none;border-bottom:2px solid #c5cae9;background:transparent;
-padding:10px 0;font-size:15px;outline:none;font-family:inherit;color:#1a237e;transition:.2s}
-input:focus{border-bottom-color:#3d4db8}
-.row{display:flex;align-items:center;justify-content:space-between;margin-top:18px;font-size:13px;color:#5c6bc0}
-.row label{display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-weight:400}
-.row a{color:#3d4db8;text-decoration:none;font-weight:500}
+body{
+  font-family:'Poppins',system-ui,sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#7B8CFF;
+  padding:28px;
+}
+.shell{
+  width:100%;
+  max-width:980px;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 30px 80px rgba(50,60,140,.28);
+  overflow:hidden;
+  display:flex;
+  min-height:560px;
+}
+/* ─ LEFT ─ */
+.left{
+  width:42%;
+  min-width:300px;
+  background:#fff;
+  padding:36px 40px 40px;
+  display:flex;
+  flex-direction:column;
+}
+.brand{
+  font-size:15px;
+  font-weight:600;
+  color:#2c3e8c;
+  margin-bottom:28px;
+}
+.panel{
+  flex:1;
+  background:#E8ECF8;
+  border-radius:16px;
+  padding:40px 32px 36px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.panel h1{
+  font-size:32px;
+  font-weight:700;
+  color:#1e2a6e;
+  letter-spacing:2px;
+  text-align:center;
+  margin-bottom:36px;
+}
+.field{margin-bottom:22px}
+.field label{
+  display:block;
+  font-size:12px;
+  font-weight:500;
+  color:#5a6a9a;
+  margin-bottom:4px;
+}
+.field input{
+  width:100%;
+  border:none;
+  border-bottom:1.5px solid #9aa3c7;
+  background:transparent;
+  padding:8px 0 6px;
+  font-size:14px;
+  font-family:inherit;
+  color:#1e2a6e;
+  outline:none;
+}
+.field input:focus{border-bottom-color:#5b6cff}
+.field input::placeholder{color:#b0b8d4}
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:8px 0 24px;
+  font-size:12px;
+  color:#6b7ab0;
+}
+.row label{display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400}
+.row a{color:#5b6cff;text-decoration:none;font-weight:500}
 .row a:hover{text-decoration:underline}
-button{width:100%;margin-top:28px;padding:14px;border:none;border-radius:10px;background:linear-gradient(90deg,#5b6cff,#7b8cff);
-color:#fff;font-size:15px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:inherit;transition:.2s}
-button:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(91,108,255,.4)}
-button:disabled{opacity:.6;cursor:wait;transform:none}
-.err{margin-top:14px;font-size:13px;color:#c62828;min-height:18px}
-.right{flex:1.1;background:#fff;display:flex;align-items:center;justify-content:center;padding:40px;position:relative}
-.illus{width:100%;max-width:340px;text-align:center}
-.illus-icon{width:120px;height:120px;margin:0 auto 20px;border-radius:28px;background:linear-gradient(145deg,#5b6cff,#a8b4ff);
-display:flex;align-items:center;justify-content:center;font-size:52px;box-shadow:0 12px 32px rgba(91,108,255,.35)}
-.illus h2{font-size:20px;color:#1a237e;margin-bottom:8px}
-.illus p{font-size:13px;color:#7986cb;line-height:1.5}
-.hint{margin-top:24px;font-size:12px;color:#9fa8da;text-align:center}
-@media(max-width:720px){.card{flex-direction:column}.right{display:none}.left{padding:36px 28px}}
+.btn{
+  width:100%;
+  border:none;
+  border-radius:8px;
+  padding:14px;
+  background:#8B9BFF;
+  color:#fff;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  cursor:pointer;
+  font-family:inherit;
+  transition:.2s;
+}
+.btn:hover{background:#6f82f5;box-shadow:0 8px 20px rgba(91,108,255,.35)}
+.btn:disabled{opacity:.65;cursor:wait}
+.err{margin-top:12px;font-size:12px;color:#c62828;text-align:center;min-height:16px}
+
+/* ─ RIGHT ─ */
+.right{
+  flex:1;
+  background:#fff;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.right::before{
+  content:'';
+  position:absolute;
+  top:0;right:0;
+  width:55%;
+  height:28px;
+  background:#1a1a1a;
+}
+.scene{
+  width:100%;
+  max-width:420px;
+  position:relative;
+}
+.icons-top{
+  display:flex;
+  justify-content:center;
+  gap:28px;
+  margin-bottom:12px;
+  opacity:.35;
+}
+.icons-top span{font-size:22px}
+.browser{
+  background:#6B7CFF;
+  border-radius:14px;
+  padding:28px 32px 36px;
+  position:relative;
+  box-shadow:0 16px 40px rgba(80,90,200,.25);
+}
+.lock{
+  width:44px;height:44px;
+  margin:0 auto 18px;
+  background:#3d4db8;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:22px;
+}
+.fake-input{
+  background:#fff;
+  border-radius:6px;
+  height:36px;
+  margin:0 auto 10px;
+  max-width:200px;
+  display:flex;align-items:center;
+  padding:0 12px;gap:8px;
+  color:#8a94c0;font-size:13px;
+}
+.people{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  margin-top:-8px;
+  padding:0 8px;
+  position:relative;
+  z-index:2;
+}
+.person{text-align:center}
+.person .body{
+  width:52px;height:70px;
+  margin:0 auto;
+  position:relative;
+}
+.p1 .head{width:22px;height:22px;background:#2c3e50;border-radius:50%;margin:0 auto 2px}
+.p1 .torso{width:36px;height:28px;background:#F5C842;border-radius:8px 8px 0 0;margin:0 auto}
+.p1 .legs{width:28px;height:22px;background:#2c3e50;margin:0 auto;border-radius:0 0 4px 4px}
+.p2 .head{width:22px;height:22px;background:#2c3e50;border-radius:50%;margin:0 auto 2px}
+.p2 .torso{width:40px;height:26px;background:#fff;border:2px solid #2c3e50;border-radius:8px 8px 0 0;margin:0 auto;box-sizing:border-box}
+.p2 .legs{width:36px;height:20px;background:#F5C842;margin:0 auto;border-radius:0 0 4px 4px}
+.desk{
+  width:90px;height:8px;background:#2c3e50;margin:0 auto;
+  border-radius:2px;
+}
+.laptop{
+  width:40px;height:24px;background:#cfd8ff;border:2px solid #2c3e50;
+  border-radius:3px;margin:0 auto 2px;
+}
+.leaves{
+  position:absolute;
+  opacity:.15;
+  font-size:48px;
+  color:#5b6cff;
+  pointer-events:none;
+}
+.leaves.l{left:8%;bottom:18%}
+.leaves.r{right:8%;top:28%}
+
+@media(max-width:800px){
+  .shell{flex-direction:column;max-width:420px}
+  .left{width:100%}
+  .right{display:none}
+}
 </style>
 </head>
 <body>
-<div class="card">
+<div class="shell">
+  <!-- Panel izquierdo (formulario) -->
   <div class="left">
-    <div class="brand">EXPORTADORA ROMEX S.A.</div>
-    <h1>WELCOME</h1>
-    <p>Control de Calidad · Planta Cacao Chincha</p>
-    <form id="form" autocomplete="on">
-      <label>Usuario</label>
-      <input type="text" id="user" placeholder="Usuario" required autofocus>
-      <label>Contraseña</label>
-      <input type="password" id="pass" placeholder="••••••••" required>
-      <div class="row">
-        <label><input type="checkbox" id="remember"> Recordarme</label>
-      </div>
-      <button type="submit" id="btn">INGRESAR</button>
-      <div class="err" id="err"></div>
-    </form>
-    <div class="hint">Usuario demo: <strong>nereyda</strong> / <strong>romex2026</strong></div>
+    <div class="brand">Romex QC</div>
+    <div class="panel">
+      <h1>WELCOME</h1>
+      <form id="form">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="user" placeholder="xxxxxxxxxxxxxxxx" required autofocus autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="pass" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="remember"> Remember</label>
+          <a href="#" onclick="return false">Forgot Password?</a>
+        </div>
+        <button type="submit" class="btn" id="btn">SUBMIT</button>
+        <div class="err" id="err"></div>
+      </form>
+    </div>
   </div>
+
+  <!-- Panel derecho (ilustración) -->
   <div class="right">
-    <div class="illus">
-      <div class="illus-icon">🔒</div>
-      <h2>Acceso seguro</h2>
-      <p>Microbiología y Físicoquímico sincronizados con SQL Server. Solo personal autorizado.</p>
+    <span class="leaves l">❦</span>
+    <span class="leaves r">❦</span>
+    <div class="scene">
+      <div class="icons-top">
+        <span>🔒</span>
+        <span>🔑</span>
+        <span>🌐</span>
+        <span>⚙️</span>
+      </div>
+      <div class="browser">
+        <div class="lock">🔒</div>
+        <div class="fake-input">👤 &nbsp; xxxxxxx</div>
+        <div class="fake-input">🔒 &nbsp; ••••••</div>
+      </div>
+      <div class="people">
+        <div class="person p1">
+          <div class="body">
+            <div class="head"></div>
+            <div class="torso"></div>
+            <div class="legs"></div>
+          </div>
+        </div>
+        <div class="person p2">
+          <div class="laptop"></div>
+          <div class="desk"></div>
+          <div class="body" style="margin-top:-4px">
+            <div class="head"></div>
+            <div class="torso"></div>
+            <div class="legs"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
 <script>
-(function(){
+(function () {
   if (localStorage.getItem('romex_token')) {
     location.href = 'index.html';
     return;
   }
-  var API = (location.port === '5500' || location.port === '5501') ? 'http://localhost:3000' : '';
-  document.getElementById('form').addEventListener('submit', async function(e){
+  var API = (location.port === '5500' || location.port === '5501' || location.protocol === 'file:')
+    ? 'http://localhost:3000' : '';
+
+  document.getElementById('form').addEventListener('submit', async function (e) {
     e.preventDefault();
     var btn = document.getElementById('btn');
     var err = document.getElementById('err');
     err.textContent = '';
     btn.disabled = true;
-    btn.textContent = 'VERIFICANDO…';
+    btn.textContent = 'SUBMIT…';
     try {
       var r = await fetch(API + '/api/login', {
         method: 'POST',
@@ -89,14 +300,19 @@ display:flex;align-items:center;justify-content:center;font-size:52px;box-shadow
         })
       });
       var data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'Credenciales incorrectas');
-      localStorage.setItem('romex_token', data.token);
+      if (!r.ok) throw new Error(data.error || 'Invalid credentials');
+      if (document.getElementById('remember').checked) {
+        localStorage.setItem('romex_token', data.token);
+      } else {
+        sessionStorage.setItem('romex_token', data.token);
+        localStorage.setItem('romex_token', data.token);
+      }
       localStorage.setItem('romex_user', data.nombre || data.user);
       location.href = 'index.html';
     } catch (ex) {
-      err.textContent = ex.message || 'No se pudo conectar al servidor';
+      err.textContent = ex.message || 'Connection error';
       btn.disabled = false;
-      btn.textContent = 'INGRESAR';
+      btn.textContent = 'SUBMIT';
     }
   });
 })();
