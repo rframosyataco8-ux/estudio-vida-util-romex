@@ -10,8 +10,19 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
-if (!localStorage.getItem('romex_token') && !sessionStorage.getItem('romex_token')) location.replace('login.html');
+(function () {
+  var t = localStorage.getItem('romex_token') || sessionStorage.getItem('romex_token');
+  if (!t) {
+    location.replace('login.html');
+  }
+})();
 </script>
+<style>
+  /* Evita flash del splash antes de saber si hay sesión */
+  html.romex-boot #splash { visibility: hidden; }
+  html.romex-ready #splash { visibility: visible; }
+</style>
+<script>document.documentElement.classList.add('romex-boot');</script>
 </head>
 <body>
   <div id="splash">
@@ -99,7 +110,6 @@ if (!localStorage.getItem('romex_token') && !sessionStorage.getItem('romex_token
     </main>
   </div>
 
-  <!-- Modal mes -->
   <div class="modal-backdrop" id="modalMes" hidden>
     <div class="modal" role="dialog" aria-labelledby="modalMesTitle">
       <div class="modal-head">
@@ -153,7 +163,6 @@ if (!localStorage.getItem('romex_token') && !sessionStorage.getItem('romex_token
     </div>
   </div>
 
-  <!-- Modal producto -->
   <div class="modal-backdrop" id="modalProducto" hidden>
     <div class="modal modal-sm" role="dialog" aria-labelledby="modalProdTitle">
       <div class="modal-head">
