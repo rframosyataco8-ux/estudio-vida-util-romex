@@ -10,16 +10,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
-if (!localStorage.getItem('romex_token')) location.replace('login.html');
+if (!localStorage.getItem('romex_token') && !sessionStorage.getItem('romex_token')) location.replace('login.html');
 </script>
 </head>
 <body>
   <div id="splash">
     <div class="splash-mesh" aria-hidden="true">
-      <span class="mesh m1"></span>
-      <span class="mesh m2"></span>
-      <span class="mesh m3"></span>
-      <span class="mesh m4"></span>
+      <span class="mesh m1"></span><span class="mesh m2"></span>
+      <span class="mesh m3"></span><span class="mesh m4"></span>
     </div>
     <div class="splash-card">
       <div class="splash-mark">
@@ -27,9 +25,7 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
           <circle class="arc-bg" cx="50" cy="50" r="44"/>
           <circle class="arc-fg" cx="50" cy="50" r="44"/>
         </svg>
-        <div class="splash-icon">
-          <span class="material-icons-outlined">science</span>
-        </div>
+        <div class="splash-icon"><span class="material-icons-outlined">science</span></div>
       </div>
       <div class="splash-brand">
         <span class="splash-brand-line"></span>
@@ -37,9 +33,7 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
         <span class="splash-brand-line"></span>
       </div>
       <p class="splash-sub">Control de Calidad · Planta Chincha</p>
-      <div class="splash-progress">
-        <div class="splash-progress-bar"></div>
-      </div>
+      <div class="splash-progress"><div class="splash-progress-bar"></div></div>
       <p class="splash-status">Inicializando…</p>
     </div>
   </div>
@@ -52,7 +46,6 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
         <div class="drawer-sub">Control de Calidad</div>
       </div>
     </div>
-
     <div class="drawer-body">
       <button type="button" class="nav-group-btn" id="productsToggle" aria-expanded="false">
         <span class="nav-group-left">
@@ -62,38 +55,130 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
         <span class="material-icons-outlined nav-group-chevron">expand_more</span>
       </button>
       <nav id="productNav" class="drawer-nav"></nav>
+      <div class="drawer-actions admin-only" id="drawerActions" hidden>
+        <button type="button" class="drawer-action-btn" id="addProductBtn">
+          <span class="material-icons-outlined">add_box</span> Nuevo producto
+        </button>
+      </div>
     </div>
-
     <div class="drawer-footer">
       <div class="footer-name" id="userName">—</div>
-      <div class="footer-role">Analista · Planta Chincha</div>
+      <div class="footer-role" id="userRoleLabel">—</div>
       <div class="db-status" id="dbStatus"><span class="dot"></span> SQL Server</div>
       <button type="button" class="logout-btn" id="logoutBtn">
-        <span class="material-icons-outlined" style="font-size:16px;vertical-align:-3px">logout</span>
+        <span class="material-icons-outlined" style="font-size:16px">logout</span>
         Cerrar sesión
       </button>
     </div>
   </aside>
 
-  <div class="app">
+  <div class="app" id="app">
     <header class="app-bar">
-      <button class="icon-btn" id="menuBtn" title="Menú"><span class="material-icons-outlined">menu</span></button>
+      <button class="icon-btn" id="menuBtn" title="Menú" type="button">
+        <span class="material-icons-outlined">menu</span>
+      </button>
       <h1 id="productTitle">—</h1>
       <span class="chip" id="loteBadge">—</span>
       <div class="spacer"></div>
       <span class="save-indicator" id="saveInd"></span>
       <div class="segmented">
-        <button class="seg active" data-mode="micro">Microbiología</button>
-        <button class="seg" data-mode="fisico">Físicoquímico</button>
+        <button type="button" class="seg active" data-mode="micro">Microbiología</button>
+        <button type="button" class="seg" data-mode="fisico">Físicoquímico</button>
       </div>
-      <button class="icon-btn" id="addMonthBtn" title="Agregar mes"><span class="material-icons-outlined">add_circle_outline</span></button>
-      <button class="icon-btn" onclick="window.print()" title="Imprimir"><span class="material-icons-outlined">print</span></button>
+      <button type="button" class="icon-btn admin-only" id="addMonthBtn" title="Agregar mes" hidden>
+        <span class="material-icons-outlined">add_circle_outline</span>
+      </button>
+      <button type="button" class="icon-btn" onclick="window.print()" title="Imprimir">
+        <span class="material-icons-outlined">print</span>
+      </button>
     </header>
 
     <div class="tabs" id="monthTabs"></div>
     <main class="content" id="content">
-      <div class="loading"><div class="spinner"></div> Conectando a SQL Server…</div>
+      <div class="loading"><div class="spinner"></div> Conectando…</div>
     </main>
+  </div>
+
+  <!-- Modal mes -->
+  <div class="modal-backdrop" id="modalMes" hidden>
+    <div class="modal" role="dialog" aria-labelledby="modalMesTitle">
+      <div class="modal-head">
+        <h2 id="modalMesTitle">Agregar mes</h2>
+        <button type="button" class="modal-close" data-close="modalMes">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Año</label>
+          <input type="number" id="mesAnio" value="2026" min="2020" max="2099">
+        </div>
+        <div class="form-row">
+          <label>Mes</label>
+          <select id="mesNumero">
+            <option value="1">Enero</option><option value="2">Febrero</option>
+            <option value="3">Marzo</option><option value="4">Abril</option>
+            <option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option>
+            <option value="9">Septiembre</option><option value="10">Octubre</option>
+            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Fecha análisis</label>
+          <input type="date" id="mesFecha">
+        </div>
+        <h3 class="modal-section">Microbiología (ufc/gr)</h3>
+        <div class="form-grid">
+          <label>RTAMV <input type="number" id="m_rtamv" value="0"></label>
+          <label>Mohos <input type="number" id="m_mohos" value="0"></label>
+          <label>Coliformes <input type="number" id="m_coliformes" value="0"></label>
+          <label>E.Coli <input type="number" id="m_ecoli" value="0"></label>
+          <label>Enterob. <input type="number" id="m_enterobacterias" value="0"></label>
+          <label>Levaduras <input type="number" id="m_levaduras" value="0"></label>
+          <label>S.Aureus <input type="number" id="m_saureus" value="0"></label>
+        </div>
+        <h3 class="modal-section">Físicoquímico</h3>
+        <div class="form-grid">
+          <label>% Humedad <input type="number" step="0.01" id="f_humedad" value="0"></label>
+          <label>pH <input type="number" step="0.01" id="f_ph" value="0"></label>
+          <label>% Ceniza <input type="number" step="0.01" id="f_ceniza" value="0"></label>
+          <label>% Grasa <input type="number" step="0.01" id="f_grasa" value="0"></label>
+          <label>% Fineza <input type="number" step="0.01" id="f_fineza" value=""></label>
+          <label>% Acidez <input type="number" step="0.01" id="f_acidez" value=""></label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-ghost" data-close="modalMes">Cancelar</button>
+        <button type="button" class="btn-primary" id="saveMesBtn">Guardar mes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal producto -->
+  <div class="modal-backdrop" id="modalProducto" hidden>
+    <div class="modal modal-sm" role="dialog" aria-labelledby="modalProdTitle">
+      <div class="modal-head">
+        <h2 id="modalProdTitle">Nuevo producto</h2>
+        <button type="button" class="modal-close" data-close="modalProducto">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Nombre del producto</label>
+          <input type="text" id="prodNombre" placeholder="Ej. Torta Natural de Cacao" required>
+        </div>
+        <div class="form-row">
+          <label>Lote</label>
+          <input type="text" id="prodLote" placeholder="Ej. 44260304" required>
+        </div>
+        <div class="form-row">
+          <label>Código (opcional)</label>
+          <input type="text" id="prodCodigo" placeholder="Se genera automático si se deja vacío">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-ghost" data-close="modalProducto">Cancelar</button>
+        <button type="button" class="btn-primary" id="saveProdBtn">Crear producto</button>
+      </div>
+    </div>
   </div>
 
   <div class="snackbar" id="snackbar"></div>
