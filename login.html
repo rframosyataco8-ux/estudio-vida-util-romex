@@ -7,229 +7,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{
-  font-family:'Poppins',system-ui,sans-serif;
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgb(184, 184, 211);
-  padding:24px;
-}
-.shell{
-  width:100%;
-  max-width:990px;
-  background:#fff;
-  border-radius:12px;
-  box-shadow:0 24px 58px rgba(50,60,140,.25);
-  overflow:hidden;
-  display:flex;
-  min-height:660px;
-}
-/* ─ LEFT ─ */
-.left{
-  width:46%;
-  min-width:300px;
-  background:#fff;
-  padding:34px 0 40px 36px;
-  display:flex;
-  flex-direction:column;
-}
-.brand{
-  font-size:17px;
-  font-weight:700;
-  color:#2c3e8c;
-  margin:0 0 20px 35px;
-}
-.panel{
-  flex:1;
-  background:#E8ECF8;
-  border-radius:16px;
-  padding:38px 56px 36px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-}
-.panel h1{
-  font-size:30px;
-  font-weight:700;
-  color:#1e2a6e;
-  letter-spacing:2px;
-  text-align:center;
-  margin-bottom:34px;
-}
+body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:rgb(184,184,211);padding:24px}
+.shell{width:100%;max-width:990px;background:#fff;border-radius:12px;box-shadow:0 24px 58px rgba(50,60,140,.25);overflow:hidden;display:flex;min-height:660px}
+.left{width:46%;min-width:300px;background:#fff;padding:34px 0 40px 36px;display:flex;flex-direction:column}
+.brand{font-size:17px;font-weight:700;color:#2c3e8c;margin:0 0 20px 35px}
+.panel{flex:1;background:#E8ECF8;border-radius:16px;padding:38px 56px 36px;display:flex;flex-direction:column;justify-content:center}
+.panel h1{font-size:30px;font-weight:700;color:#1e2a6e;letter-spacing:2px;text-align:center;margin-bottom:34px}
 .field{margin-bottom:20px}
-.field label{
-  display:block;
-  font-size:13px;
-  font-weight:600;
-  color:#5a6a9a;
-  margin-bottom:4px;
-}
-.field input{
-  width:100%;
-  border:none;
-  border-bottom:2px solid #40549b;
-  background:transparent;
-  padding:6px 0 7px;
-  font-size:13px;
-  font-family:inherit;
-  color:#1e2a6e;
-  outline:none;
-}
+.field label{display:block;font-size:13px;font-weight:600;color:#5a6a9a;margin-bottom:4px}
+.field input{width:100%;border:none;border-bottom:2px solid #40549b;background:transparent;padding:6px 0 7px;font-size:13px;font-family:inherit;color:#1e2a6e;outline:none}
 .field input:focus{border-bottom-color:#5b6cff}
-.field input::placeholder{color:#b0b8d4}
-.row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin:7px 0 25px;
-  font-size:11px;
-  color:#2c448f;
-}
-.row label{display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400}
-.row a{color:#5b6cff;text-decoration:none;font-weight:500}
-.row a:hover{text-decoration:underline}
-.btn{
-  width:100%;
-  border:none;
-  border-radius:0;
-  padding:15px;
-  background:#7182f6;
-  color:#fff;
-  font-size:15px;
-  font-weight:600;
-  letter-spacing:2px;
-  cursor:pointer;
-  font-family:inherit;
-  transition:.2s;
-}
+.row{display:flex;align-items:center;justify-content:space-between;margin:7px 0 25px;font-size:11px;color:#2c448f}
+.row label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.btn{width:100%;border:none;border-radius:0;padding:15px;background:#7182f6;color:#fff;font-size:15px;font-weight:600;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:.2s}
 .btn:hover{background:#6f82f5;box-shadow:0 8px 20px rgba(91,108,255,.35)}
 .btn:disabled{opacity:.65;cursor:wait}
 .err{margin-top:12px;font-size:12px;color:#c62828;text-align:center;min-height:16px}
-
-/* ─ RIGHT ─ */
-.right{
-  flex:1;
-  background:#fff;
-  position:relative;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:44px 32px 28px;
-}
-.right::before{
-  display:none;
-}
-.login-illustration{
-  display:block;
-  width:100%;
-  max-width:500px;
-  height:auto;
-  object-fit:contain;
-  position:relative;
-  z-index:1;
-  transform:translateY(10px);
-}
-.scene{
-  width:100%;
-  max-width:500px;
-  position:relative;
-  transform:translateY(12px);
-}
-.icons-top{
-  display:flex;
-  justify-content:center;
-  gap:42px;
-  margin-bottom:18px;
-  opacity:.38;
-}
-.icons-top span{font-size:34px;filter:grayscale(1)}
-.browser{
-  background:#6B7CFF;
-  width:410px;
-  max-width:100%;
-  margin:0 auto;
-  border-radius:8px;
-  padding:31px 32px 43px;
-  position:relative;
-  box-shadow:0 14px 34px rgba(80,90,200,.22);
-}
-.lock{
-  width:54px;height:54px;
-  margin:0 auto 22px;
-  background:#3d4db8;
-  border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  color:#fff;font-size:27px;
-}
-.fake-input{
-  background:#fff;
-  border-radius:4px;
-  height:46px;
-  margin:0 auto 10px;
-  max-width:230px;
-  display:flex;align-items:center;
-  padding:0 14px;gap:8px;
-  color:#8a94c0;font-size:14px;
-}
-.people{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  width:410px;
-  max-width:100%;
-  margin-left:auto;
-  margin-right:auto;
-  margin-top:-9px;
-  padding:0 12px;
-  position:relative;
-  z-index:2;
-}
-.person{text-align:center;transform:scale(1.35);transform-origin:bottom center}
-.person .body{
-  width:52px;height:70px;
-  margin:0 auto;
-  position:relative;
-}
-.p1 .head{width:22px;height:22px;background:#2c3e50;border-radius:50%;margin:0 auto 2px}
-.p1 .torso{width:36px;height:28px;background:#F5C842;border-radius:8px 8px 0 0;margin:0 auto}
-.p1 .legs{width:28px;height:22px;background:#2c3e50;margin:0 auto;border-radius:0 0 4px 4px}
-.p2 .head{width:22px;height:22px;background:#2c3e50;border-radius:50%;margin:0 auto 2px}
-.p2 .torso{width:40px;height:26px;background:#fff;border:2px solid #2c3e50;border-radius:8px 8px 0 0;margin:0 auto;box-sizing:border-box}
-.p2 .legs{width:36px;height:20px;background:#F5C842;margin:0 auto;border-radius:0 0 4px 4px}
-.desk{
-  width:90px;height:8px;background:#2c3e50;margin:0 auto;
-  border-radius:2px;
-}
-.laptop{
-  width:40px;height:24px;background:#cfd8ff;border:2px solid #2c3e50;
-  border-radius:3px;margin:0 auto 2px;
-}
-.leaves{
-  position:absolute;
-  opacity:.15;
-  font-size:72px;
-  color:#5b6cff;
-  pointer-events:none;
-}
-.leaves.l{left:0;bottom:15%}
-.leaves.r{right:0;top:25%}
-
-@media(max-width:800px){
-  body{padding:14px}
-  .shell{flex-direction:column;max-width:440px;min-height:0}
-  .left{width:100%}
-  .left{padding:28px 24px 24px}
-  .brand{margin-left:4px}
-  .panel{padding:38px 34px 34px;min-height:470px}
-  .right{display:none}
-}
+.right{flex:1;background:#fff;display:flex;align-items:center;justify-content:center;padding:44px 32px 28px}
+.login-illustration{display:block;width:100%;max-width:500px;height:auto;object-fit:contain}
+@media(max-width:800px){body{padding:14px}.shell{flex-direction:column;max-width:440px;min-height:0}.left{width:100%;padding:28px 24px 24px}.brand{margin-left:4px}.panel{padding:38px 34px 34px;min-height:470px}.right{display:none}}
 </style>
 </head>
 <body>
 <div class="shell">
-  <!-- Panel izquierdo (formulario) -->
   <div class="left">
     <div class="brand">Exportadora RomEx S.A.</div>
     <div class="panel">
@@ -237,7 +37,7 @@ body{
       <form id="form">
         <div class="field">
           <label>Usuario</label>
-          <input type="text" id="user" placeholder="xxxxxxxxxxxxxxxx" required autofocus autocomplete="username">
+          <input type="text" id="user" placeholder="usuario" required autofocus autocomplete="username">
         </div>
         <div class="field">
           <label>Contraseña</label>
@@ -245,23 +45,19 @@ body{
         </div>
         <div class="row">
           <label><input type="checkbox" id="remember"> Recordarme</label>
-          <a href="#" onclick="return false">¿Olvidaste tu contraseña?</a>
         </div>
         <button type="submit" class="btn" id="btn">INGRESAR</button>
         <div class="err" id="err"></div>
       </form>
     </div>
   </div>
-
-  <!-- Panel derecho (ilustración) -->
   <div class="right">
-    <img class="login-illustration" src="img/Gemini_Generated_Image_8gkfoz8gkfoz8gkf.jpg" alt="Ilustración de seguridad para iniciar sesión">
+    <img class="login-illustration" src="img/Gemini_Generated_Image_8gkfoz8gkfoz8gkf.jpg" alt="Ilustración login">
   </div>
 </div>
-
 <script>
 (function () {
-  if (localStorage.getItem('romex_token')) {
+  if (localStorage.getItem('romex_token') || sessionStorage.getItem('romex_token')) {
     location.href = 'index.html';
     return;
   }
@@ -285,17 +81,17 @@ body{
         })
       });
       var data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'Invalid credentials');
-      if (document.getElementById('remember').checked) {
-        localStorage.setItem('romex_token', data.token);
-      } else {
-        sessionStorage.setItem('romex_token', data.token);
-        localStorage.setItem('romex_token', data.token);
-      }
+      if (!r.ok) throw new Error(data.error || 'Credenciales inválidas');
+      var store = document.getElementById('remember').checked ? localStorage : sessionStorage;
+      store.setItem('romex_token', data.token);
+      store.setItem('romex_user', data.nombre || data.user);
+      store.setItem('romex_rol', data.rol || 'LECTOR');
+      localStorage.setItem('romex_token', data.token);
       localStorage.setItem('romex_user', data.nombre || data.user);
+      localStorage.setItem('romex_rol', data.rol || 'LECTOR');
       location.href = 'index.html';
     } catch (ex) {
-      err.textContent = ex.message || 'Connection error';
+      err.textContent = ex.message || 'Error de conexión';
       btn.disabled = false;
       btn.textContent = 'INGRESAR';
     }
