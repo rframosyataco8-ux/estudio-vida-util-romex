@@ -3,47 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control de Calidad · Exportadora Romex S.A.</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Control de Calidad · Romex</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-logo">ROMEX</div>
-      <div class="brand-sub">Control de Calidad</div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-header">
+      <span class="material-icons-outlined">science</span>
+      <div>
+        <div class="drawer-title">Romex QC</div>
+        <div class="drawer-sub">Control de Calidad</div>
+      </div>
     </div>
-    <div class="sidebar-section">Productos</div>
-    <nav id="productNav"></nav>
-    <div class="sidebar-footer">
-      <div class="analyst">Nereyda Huachua Flores</div>
-      <div class="plant">Planta Cacao Chincha</div>
+    <div class="drawer-section">Productos</div>
+    <nav id="productNav" class="drawer-nav"></nav>
+    <div class="drawer-footer">
+      <div class="footer-name">Nereyda Huachua Flores</div>
+      <div class="footer-role">Analista · Planta Chincha</div>
     </div>
   </aside>
 
-  <main class="main">
-    <header class="topbar">
-      <div class="topbar-left">
-        <h1 id="productTitle">—</h1>
-        <span class="lote-badge" id="loteBadge">—</span>
+  <div class="app">
+    <header class="app-bar">
+      <button class="icon-btn" id="menuBtn" title="Menú"><span class="material-icons-outlined">menu</span></button>
+      <h1 id="productTitle">—</h1>
+      <span class="chip" id="loteBadge">—</span>
+      <div class="spacer"></div>
+      <div class="segmented">
+        <button class="seg active" data-mode="micro">Microbiología</button>
+        <button class="seg" data-mode="fisico">Físicoquímico</button>
       </div>
-      <div class="topbar-right">
-        <div class="mode-toggle">
-          <button class="mode-btn active" data-mode="micro">Microbiología</button>
-          <button class="mode-btn" data-mode="fisico">Físicoquímico</button>
-        </div>
-        <button class="icon-btn" onclick="window.print()" title="Imprimir">&#128424;</button>
-        <button class="icon-btn" onclick="saveData()" title="Guardar">&#128190;</button>
-      </div>
+      <button class="icon-btn" onclick="window.print()" title="Imprimir"><span class="material-icons-outlined">print</span></button>
+      <button class="icon-btn" onclick="saveCurrent()" title="Guardar"><span class="material-icons-outlined">save</span></button>
     </header>
 
-    <div class="month-tabs" id="monthTabs"></div>
-    <div class="content" id="content"></div>
-  </main>
+    <div class="tabs" id="monthTabs"></div>
+    <main class="content" id="content">
+      <div class="loading"><div class="spinner"></div> Cargando…</div>
+    </main>
+  </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="snackbar" id="snackbar"></div>
+  <script>
+    window.API_BASE = (window.location.port === '8080' || window.location.protocol === 'file:')
+      ? 'http://localhost:3000' : '';
+  </script>
   <script src="js/app.js"></script>
 </body>
 </html>
