@@ -1,40 +1,43 @@
 # Control de Calidad — Exportadora Romex S.A.
 
-Sistema profesional multi-producto para **Microbiología** y **Físicoquímico** por mes.
+Sistema multi-producto: **Microbiología** + **Físicoquímico** por mes.
 
-## Productos incluidos
-| Producto | Lote (Mayo) |
-|----------|-------------|
-| Torta Natural de Cacao | 44260304 |
-| Torta Alcalina de Cacao | 13260318 |
-| Cocoa Natural | 11260513 |
-| Cocoa Alcalina | 07260324 |
-| Licor de Cacao | 260516 |
-| Manteca de Cacao | 19260321 |
+## Base de datos
+Los datos **no están hardcodeados** en el HTML/JS.
 
-## Características
-- Navegación por producto (sidebar)
-- Dos modos: **Microbiología** | **Físicoquímico**
-- Pestañas mensuales (Mayo → Diciembre)
-- Datos base de mayo (Excel + análisis físicoquímico)
-- Variación coherente mes a mes (más marcada ago–dic)
-- Gráficos Chart.js (barras del mes + tendencia)
-- Persistencia localStorage
-- Impresión optimizada
+| Archivo | Rol |
+|---------|-----|
+| `data/products.json` | Semilla / catálogo de productos y bases de mayo |
+| **IndexedDB** (`romex_qc_db`) | Base de datos local del navegador (resultados editados) |
 
-## Uso
+Al abrir por primera vez se genera la serie Mayo→Diciembre y se guarda en IndexedDB.  
+Las ediciones se persisten con el botón 💾.
+
+## Cómo abrir
+Como usa `fetch('data/products.json')`, **no abras con doble clic** (`file://`). Usa un servidor local:
+
 ```bash
 git clone https://github.com/rframosyataco8-ux/estudio-vida-util-romex.git
 cd estudio-vida-util-romex
+
+# Opción 1
+npx serve .
+
+# Opción 2
+python3 -m http.server 8080
+# luego http://localhost:8080
 ```
-Abre `index.html` en el navegador.
 
 ## Estructura
 ```
 index.html
 css/styles.css
 js/app.js
+data/products.json   ← base de datos semilla
 README.md
 ```
 
-Analista: **Nereyda Huachua Flores** · Planta Cacao Chincha
+## Productos (datos mayo)
+Torta Natural · Torta Alcalina · Cocoa Natural · Cocoa Alcalina · Licor · Manteca
+
+Analista: Nereyda Huachua Flores · Planta Cacao Chincha

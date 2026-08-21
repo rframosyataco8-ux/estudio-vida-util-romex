@@ -1,0 +1,65 @@
+{
+  "meta": {
+    "version": 2,
+    "company": "EXPORTADORA ROMEX S.A.",
+    "plant": "Planta de Cacao Chincha",
+    "code": "I-EVUP-R-309",
+    "edition": "19",
+    "emission": "08-01-2026",
+    "analyst": "Nereyda Huachua Flores"
+  },
+  "months": [
+    {"key": "mayo", "n": "MAYO", "nm": 1, "y": 2026, "m": 5},
+    {"key": "junio", "n": "JUNIO", "nm": 2, "y": 2026, "m": 6},
+    {"key": "julio", "n": "JULIO", "nm": 3, "y": 2026, "m": 7},
+    {"key": "agosto", "n": "AGOSTO", "nm": 4, "y": 2026, "m": 8},
+    {"key": "sept", "n": "SEPTIEMBRE", "nm": 5, "y": 2026, "m": 9},
+    {"key": "oct", "n": "OCTUBRE", "nm": 6, "y": 2026, "m": 10},
+    {"key": "nov", "n": "NOVIEMBRE", "nm": 7, "y": 2026, "m": 11},
+    {"key": "dic", "n": "DICIEMBRE", "nm": 8, "y": 2026, "m": 12}
+  ],
+  "products": {
+    "torta_natural": {
+      "name": "Torta Natural de Cacao",
+      "lote": "44260304",
+      "microBase": {"rtamv": 900, "mohos": 10, "coliformes": 0, "ecoli": 0, "enterob": 0, "levaduras": 0, "saureus": 0},
+      "fisicoBase": {"humedad": 2.22, "ph": 5.4, "ceniza": 8.3, "grasa": 12.11},
+      "fisicoFields": ["humedad", "ph", "ceniza", "grasa"]
+    },
+    "torta_alcalina": {
+      "name": "Torta Alcalina de Cacao",
+      "lote": "13260318",
+      "microBase": {"rtamv": 40, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterob": 0, "levaduras": 0, "saureus": 0},
+      "fisicoBase": {"humedad": 3.54, "ph": 6.81, "ceniza": 11.6, "grasa": 11.68},
+      "fisicoFields": ["humedad", "ph", "ceniza", "grasa"]
+    },
+    "cocoa_natural": {
+      "name": "Cocoa Natural",
+      "lote": "11260513",
+      "microBase": {"rtamv": 1400, "mohos": 15, "coliformes": 0, "ecoli": 0, "enterob": 0, "levaduras": 0, "saureus": 0},
+      "fisicoBase": {"humedad": 2.49, "ph": 5.39, "ceniza": 8.2, "grasa": 11.8, "fineza": 99.49},
+      "fisicoFields": ["humedad", "ph", "ceniza", "grasa", "fineza"]
+    },
+    "cocoa_alcalina": {
+      "name": "Cocoa Alcalina",
+      "lote": "07260324",
+      "microBase": {"rtamv": 1100, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterob": 0, "levaduras": 0, "saureus": 0},
+      "fisicoBase": {"humedad": 2.76, "ph": 6.87, "ceniza": 10.3, "grasa": 11.62, "fineza": 98.51},
+      "fisicoFields": ["humedad", "ph", "ceniza", "grasa", "fineza"]
+    },
+    "licor": {
+      "name": "Licor de Cacao",
+      "lote": "260516",
+      "microBase": {"rtamv": 300, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterob": 0, "levaduras": 0, "saureus": 0},
+      "fisicoBase": {"humedad": 0.55, "ph": 5.42, "ceniza": 3.9, "grasa": 48.65, "fineza": 99.74, "acidez": 2.1},
+      "fisicoFields": ["humedad", "ph", "ceniza", "grasa", "fineza", "acidez"]
+    },
+    "manteca": {
+      "name": "Manteca de Cacao",
+      "lote": "19260321",
+      "microBase": {"rtamv": 50, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterob": 0, "levaduras": 0, "saureus": 0},
+      "fisicoBase": {"humedad": 0.02, "acidez": 1.64},
+      "fisicoFields": ["humedad", "acidez"]
+    }
+  }
+}
