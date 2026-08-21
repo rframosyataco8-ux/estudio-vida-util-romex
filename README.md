@@ -1,43 +1,60 @@
-# Control de Calidad — Exportadora Romex S.A.
+# Control de Calidad Romex — Web + SQL
 
-Sistema multi-producto: **Microbiología** + **Físicoquímico** por mes.
+Aplicación profesional (Material Design) con:
+- **Microbiología** y **Físicoquímico** por producto y mes
+- Datos de **mayo** tomados del Excel e imagen real
+- Variación coherente junio–diciembre (leve alza desde agosto)
+- API Node.js + **SQL Server** (SSMS) o **PostgreSQL** (Render)
 
-## Base de datos
-Los datos **no están hardcodeados** en el HTML/JS.
+## Arquitectura
 
-| Archivo | Rol |
-|---------|-----|
-| `data/products.json` | Semilla / catálogo de productos y bases de mayo |
-| **IndexedDB** (`romex_qc_db`) | Base de datos local del navegador (resultados editados) |
+```
+Navegador (Material Design) → /api/... → server/index.js → SQL Server | PostgreSQL
+```
 
-Al abrir por primera vez se genera la serie Mayo→Diciembre y se guarda en IndexedDB.  
-Las ediciones se persisten con el botón 💾.
+## 1) SQL Server (SSMS)
 
-## Cómo abrir
-Como usa `fetch('data/products.json')`, **no abras con doble clic** (`file://`). Usa un servidor local:
+1. Abre SSMS y conéctate a tu instancia.
+2. Ejecuta `sql/01_schema_sqlserver.sql`
+3. Ejecuta `sql/02_seed_sqlserver.sql`
+4. Verifica: `SELECT * FROM RomexQC.dbo.Productos`
+
+Crea `server/.env`:
+```env
+DB_TYPE=mssql
+MSSQL_SERVER=localhost
+MSSQL_DATABASE=RomexQC
+MSSQL_USER=sa
+MSSQL_PASSWORD=TuPassword
+MSSQL_ENCRYPT=false
+PORT=3000
+```
+
+## 2) Local
 
 ```bash
-git clone https://github.com/rframosyataco8-ux/estudio-vida-util-romex.git
-cd estudio-vida-util-romex
-
-# Opción 1
-npx serve .
-
-# Opción 2
-python3 -m http.server 8080
-# luego http://localhost:8080
+cd server
+npm install
+cp .env.example .env
+npm start
+# http://localhost:3000
 ```
 
-## Estructura
-```
-index.html
-css/styles.css
-js/app.js
-data/products.json   ← base de datos semilla
-README.md
-```
+## 3) Render (PostgreSQL + Web Service)
 
-## Productos (datos mayo)
-Torta Natural · Torta Alcalina · Cocoa Natural · Cocoa Alcalina · Licor · Manteca
+Render **no tiene SQL Server**. Usa Postgres:
 
-Analista: Nereyda Huachua Flores · Planta Cacao Chincha
+1. **New → PostgreSQL** → copia `DATABASE_URL`
+2. Ejecuta `sql/01_schema_postgres.sql` + inserts de productos/resultados
+3. **New → Web Service** (repo GitHub)
+   - Build: `cd server && npm install`
+   - Start: `cd server && node index.js`
+   - Env: `DATABASE_URL`, `DB_TYPE=postgres`, `NODE_ENV=production`
+
+## Diseño
+Material Design claro (Roboto, cards, chips, tabs).
+
+## Datos mayo (Excel + imagen)
+Torta Natural 44260304 | Torta Alcalina 13260318 | Cocoa Natural 11260513 | Cocoa Alcalina 07260324 | Licor 260516 | Manteca 19260321
+
+Analista: Nereyda Huachua Flores
