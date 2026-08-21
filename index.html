@@ -3,49 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESTUDIO DE VIDA ÚTIL — TORTA ALCALINA DE CACAO | Exportadora Romex S.A.</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<title>Control de Calidad · Exportadora Romex S.A.</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
-
-<div class="tab-bar"><div class="logo-tab">ROMEX</div></div>
-
-<div class="main-nav">
-  <button class="nav-btn active" data-view="micro">Microbiología</button>
-  <button class="nav-btn" data-view="humedad">% Humedad</button>
-</div>
-
-<button class="print-btn" onclick="window.print()" title="Imprimir">&#9113;</button>
-<button class="save-btn" onclick="saveData()" title="Guardar datos">&#128190;</button>
-
-<div class="main-area" id="mainArea"></div>
-<div class="toast" id="toast"></div>
-
-<div class="modal-overlay" id="modal">
-  <div class="modal-box">
-    <div class="modal-title">Agregar Nueva Hoja (Mes)</div>
-    <div class="modal-label">Nombre del Mes</div>
-    <input class="modal-input" id="mNombre" placeholder="Ej: FEBRERO" maxlength="20">
-    <div class="modal-label">Fecha de Análisis (YYYY/M/D)</div>
-    <input class="modal-input" id="mFecha" placeholder="Ej: 2026/2/13">
-    <div class="modal-row" style="margin-bottom:12px">
-      <div><div class="modal-label">RTAMV</div><input class="modal-input" id="mRtamv" type="number" value="4000"></div>
-      <div><div class="modal-label">Mohos</div><input class="modal-input" id="mMohos" type="number" value="15"></div>
-      <div><div class="modal-label">E. Coli</div><input class="modal-input" id="mEcoli" type="number" value="0"></div>
-      <div><div class="modal-label">Enterobact.</div><input class="modal-input" id="mEnterob" type="number" value="0"></div>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">ROMEX</div>
+      <div class="brand-sub">Control de Calidad</div>
     </div>
-    <div class="modal-label">% Humedad (opcional)</div>
-    <input class="modal-input" id="mHumedad" type="number" step="0.01" value="2.01" placeholder="Ej: 2.01">
-    <div class="modal-actions">
-      <button class="mbtn mbtn-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="mbtn mbtn-ok" onclick="addSheet()">Agregar</button>
+    <div class="sidebar-section">Productos</div>
+    <nav id="productNav"></nav>
+    <div class="sidebar-footer">
+      <div class="analyst">Nereyda Huachua Flores</div>
+      <div class="plant">Planta Cacao Chincha</div>
     </div>
-  </div>
-</div>
+  </aside>
 
-<script src="js/app.js"></script>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 id="productTitle">—</h1>
+        <span class="lote-badge" id="loteBadge">—</span>
+      </div>
+      <div class="topbar-right">
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="micro">Microbiología</button>
+          <button class="mode-btn" data-mode="fisico">Físicoquímico</button>
+        </div>
+        <button class="icon-btn" onclick="window.print()" title="Imprimir">&#128424;</button>
+        <button class="icon-btn" onclick="saveData()" title="Guardar">&#128190;</button>
+      </div>
+    </header>
+
+    <div class="month-tabs" id="monthTabs"></div>
+    <div class="content" id="content"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="js/app.js"></script>
 </body>
 </html>
