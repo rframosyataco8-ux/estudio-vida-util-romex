@@ -15,10 +15,25 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
 </head>
 <body>
   <div id="splash">
-    <div class="splash-logo"><span class="material-icons-outlined">science</span></div>
-    <div class="splash-title">Exportadora RomEx S.A.</div>
-    <div class="splash-sub">Control de Calidad · Planta Chincha</div>
-    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+    <div class="splash-bg" aria-hidden="true">
+      <span class="splash-orb splash-orb-1"></span>
+      <span class="splash-orb splash-orb-2"></span>
+      <span class="splash-orb splash-orb-3"></span>
+    </div>
+    <div class="splash-content">
+      <div class="splash-ring">
+        <svg class="splash-ring-svg" viewBox="0 0 80 80" aria-hidden="true">
+          <circle class="splash-ring-track" cx="40" cy="40" r="34"></circle>
+          <circle class="splash-ring-progress" cx="40" cy="40" r="34"></circle>
+        </svg>
+        <div class="splash-logo">
+          <span class="material-icons-outlined">science</span>
+        </div>
+      </div>
+      <div class="splash-title">Exportadora RomEx S.A.</div>
+      <div class="splash-sub">Control de Calidad · Planta Chincha</div>
+      <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+    </div>
   </div>
 
   <aside class="drawer" id="drawer">
