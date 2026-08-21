@@ -15,10 +15,23 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
 </head>
 <body>
   <div id="splash">
-    <div class="splash-logo"><span class="material-icons-outlined">science</span></div>
-    <div class="splash-title">Exportadora RomEx S.A.</div>
-    <div class="splash-sub">Control de Calidad · Planta Chincha</div>
-    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+    <div class="splash-glow" aria-hidden="true"></div>
+    <div class="splash-inner">
+      <div class="splash-logo-wrap">
+        <div class="splash-logo-pulse"></div>
+        <div class="splash-logo">
+          <span class="material-icons-outlined">science</span>
+        </div>
+      </div>
+      <div class="splash-title">Exportadora RomEx S.A.</div>
+      <div class="splash-sub">Control de Calidad · Planta Chincha</div>
+      <div class="splash-loader">
+        <div class="splash-loader-track">
+          <div class="splash-loader-fill"></div>
+        </div>
+        <div class="splash-loader-text">Cargando sistema…</div>
+      </div>
+    </div>
   </div>
 
   <aside class="drawer" id="drawer">
@@ -31,14 +44,14 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
     </div>
 
     <div class="drawer-body">
-      <button type="button" class="nav-group-btn open" id="productsToggle" aria-expanded="true">
+      <button type="button" class="nav-group-btn" id="productsToggle" aria-expanded="false">
         <span class="nav-group-left">
           <span class="material-icons-outlined nav-group-icon">inventory_2</span>
           <span>Productos</span>
         </span>
         <span class="material-icons-outlined nav-group-chevron">expand_more</span>
       </button>
-      <nav id="productNav" class="drawer-nav open"></nav>
+      <nav id="productNav" class="drawer-nav"></nav>
     </div>
 
     <div class="drawer-footer">

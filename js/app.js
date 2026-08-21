@@ -11,7 +11,7 @@ var MICRO_LABELS = {rtamv:'RTAMV',mohos:'Mohos',coliformes:'Colif.',ecoli:'E.Col
 var FISICO_LABELS = {humedad:'% Humedad',ph:'pH',ceniza:'% Ceniza',grasa:'% Grasa',fineza:'% Fineza',acidez:'% Acidez'};
 var COLORS = {rtamv:'#1565c0',mohos:'#ef6c00',coliformes:'#2e7d32',ecoli:'#43a047',enterobacterias:'#7b1fa2',levaduras:'#c2185b',saureus:'#c62828',humedad:'#1565c0',ph:'#0288d1',ceniza:'#78909c',grasa:'#f9a825',fineza:'#2e7d32',acidez:'#e53935'};
 
-function hideSplash(){ var s=document.getElementById('splash'); if(s) setTimeout(function(){s.classList.add('hide');},1200); }
+function hideSplash(){ var s=document.getElementById('splash'); if(s) setTimeout(function(){s.classList.add('hide');},1600); }
 async function api(path, opts){
   var r = await fetch(API + path, opts);
   if(!r.ok){ var t=await r.text(); throw new Error(t||r.statusText); }
