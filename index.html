@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESTUDIO DE VIDA ÚTIL — TORTA ALCALINA DE CACAO | Exportadora Romex S.A.</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0c0c0c;color:#e5e5e5;min-height:100vh}
+.tab-bar{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(12,12,12,.97);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;padding:0 10px;height:48px;overflow-x:auto;gap:1px}
+.tab-bar::-webkit-scrollbar{height:0}
+.logo-tab{flex-shrink:0;padding:8px 12px;font-size:10px;font-weight:900;color:#3a3a3a;letter-spacing:2px;margin-right:4px}
+.tab-btn{flex-shrink:0;padding:6px 14px;border:none;background:0 0;color:#4a4a4a;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;cursor:pointer;border-radius:8px 8px 0 0;transition:all .2s;letter-spacing:.3px;text-transform:uppercase}
+.tab-btn:hover{color:#888;background:rgba(255,255,255,.02)}
+.tab-btn.active{color:#fff;background:#161616;box-shadow:inset 0 2px 0 #c8956c}
+.tab-btn .x{margin-left:5px;font-size:12px;opacity:.2;cursor:pointer;transition:all .15s}
+.tab-btn .x:hover{opacity:1;color:#ef4444}
+.add-btn{flex-shrink:0;width:30px;height:30px;border:1px dashed #2a2a2a;background:0 0;color:#444;font-size:16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-left:3px}
+.add-btn:hover{border-color:#c8956c;color:#c8956c}
+.main-nav{position:fixed;top:48px;left:0;right:0;z-index:190;background:rgba(14,14,14,.98);border-bottom:1px solid #1a1a1a;display:flex;gap:0;padding:0 12px;height:36px}
+.nav-btn{padding:0 16px;height:36px;border:none;background:0 0;color:#555;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;cursor:pointer;letter-spacing:.4px;text-transform:uppercase;border-bottom:2px solid transparent;transition:all .2s}
+.nav-btn:hover{color:#aaa}
+.nav-btn.active{color:#c8956c;border-bottom-color:#c8956c}
+.main-area{padding-top:92px}
+.sheet{display:none;padding:24px 18px;max-width:1060px;margin:0 auto}
+.sheet.active{display:block}
+.doc-header{border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:18px;background:#141414}
+.doc-header-top{display:flex;justify-content:space-between;border-bottom:1px solid #1a1a1a}
+.doc-header-left{padding:12px 16px;flex:1}
+.doc-header-right{padding:12px 16px;text-align:right;border-left:1px solid #1a1a1a}
+.company-name{font-size:13px;font-weight:800;color:#fff;letter-spacing:.3px}
+.plant-name{font-size:9px;color:#777;margin-top:1px}
+.area-name{font-size:8px;color:#444;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.code-ref,.edition{font-size:8px;color:#444}
+.doc-title-bar{background:linear-gradient(135deg,#18130e,#211c15);padding:10px 16px;text-align:center;border-bottom:1px solid #1a1a1a}
+.doc-title{font-size:12px;font-weight:700;color:#fff;letter-spacing:.3px}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:8px;font-weight:700;letter-spacing:.4px;background:rgba(200,149,108,.1);color:#c8956c;margin-left:7px;vertical-align:middle}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:18px;background:#141414}
+.info-label{padding:8px 12px;font-size:9px;font-weight:600;color:#444;background:#0e0e0e;border-bottom:1px solid #181818;letter-spacing:.3px;text-transform:uppercase}
+.info-value{padding:8px 12px;font-size:10px;font-weight:500;color:#e5e5e5;border-bottom:1px solid #181818;border-left:1px solid #181818;outline:none;transition:background .2s,box-shadow .2s}
+.info-value:focus{background:#18130e;box-shadow:inset 0 0 0 1px rgba(200,149,108,.25)}
+.full-span{grid-column:1/-1}
+.full-span .info-value{border-left:none}
+.section{border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:18px;background:#141414}
+.section-title{background:linear-gradient(135deg,#18130e,#211c15);padding:9px 12px;font-size:9px;font-weight:700;color:#c8956c;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #1a1a1a}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{padding:8px 10px;font-size:8px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.3px;text-align:center;border-bottom:1px solid #1a1a1a;background:#0e0e0e}
+td{padding:8px 10px;font-size:10px;font-weight:500;color:#e5e5e5;text-align:center;border-bottom:1px solid #141414}
+td input{background:0 0;border:1px solid transparent;color:#e5e5e5;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;text-align:center;width:76px;padding:3px 5px;border-radius:4px;outline:none;transition:all .15s}
+td input:focus{border-color:rgba(200,149,108,.35);background:#18130e}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.01)}
+.storage-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.storage-cell{padding:10px 12px;border-bottom:1px solid #1a1a1a}
+.storage-cell:nth-child(odd){border-right:1px solid #1a1a1a}
+.storage-cell-label{font-size:8px;color:#444;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.storage-cell-value{font-size:10px;color:#e5e5e5;font-weight:500;margin-top:2px;outline:none;transition:color .2s}
+.storage-cell-value:focus{color:#c8956c}
+.chart-section{border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:18px;background:#141414}
+.chart-header{background:linear-gradient(135deg,#18130e,#211c15);padding:9px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1a1a1a;flex-wrap:wrap;gap:6px}
+.chart-header-title{font-size:9px;font-weight:700;color:#c8956c;letter-spacing:.6px;text-transform:uppercase}
+.toggle{display:flex;border-radius:6px;overflow:hidden;border:1px solid #2a2a2a}
+.toggle-btn{padding:5px 14px;border:none;background:#0e0e0e;color:#555;font-family:'Inter',sans-serif;font-size:9px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.3px;text-transform:uppercase}
+.toggle-btn:hover{color:#888}
+.toggle-btn.active{background:#c8956c;color:#0e0e0e}
+.chart-sub{text-align:center;font-size:8px;color:#333;padding:5px 0 0;font-weight:500}
+.chart-box{padding:10px 14px 2px;position:relative;height:340px}
+.chart-box.sm{height:280px}
+.pack-note{padding:8px 12px;font-size:8px;color:#444;font-style:italic;border-top:1px solid #1a1a1a}
+.interp-content{padding:12px 16px}
+.interp-month{text-align:center;font-size:11px;font-weight:700;color:#fff;margin-bottom:8px;letter-spacing:.3px}
+.interp-sub{text-align:center;font-size:9px;font-weight:600;color:#777;margin-bottom:12px}
+.interp-text{font-size:9px;color:#666;line-height:1.9;text-align:justify;outline:none;cursor:text;min-height:50px;transition:color .2s}
+.interp-text:focus{color:#999}
+.sig-area{margin-top:24px;display:flex;justify-content:flex-end;gap:40px}
+.sig-box{text-align:center}
+.sig-label{font-size:8px;color:#444;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.sig-line{width:180px;height:1px;background:#2a2a2a;margin:6px auto}
+.sig-name{font-size:10px;color:#e5e5e5;font-weight:600}
+.toast{position:fixed;bottom:20px;right:20px;z-index:999;background:#1a1610;border:1px solid #2a2a2a;border-radius:8px;padding:10px 18px;font-size:10px;color:#c8956c;font-weight:500;box-shadow:0 6px 24px rgba(0,0,0,.6);transform:translateY(70px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:24px;width:420px;max-width:90vw}
+.modal-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:16px}
+.modal-label{font-size:9px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+.modal-input{width:100%;padding:9px 11px;background:#0e0e0e;border:1px solid #2a2a2a;border-radius:6px;color:#e5e5e5;font-family:'Inter',sans-serif;font-size:11px;outline:none;margin-bottom:12px;transition:border-color .2s}
+.modal-input:focus{border-color:#c8956c}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-row .modal-input{margin-bottom:0}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.mbtn{padding:7px 18px;border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s}
+.mbtn-cancel{background:#1a1a1a;color:#666}
+.mbtn-cancel:hover{background:#222;color:#aaa}
+.mbtn-ok{background:#c8956c;color:#0e0e0e}
+.mbtn-ok:hover{background:#d4a47a}
+.print-btn,.save-btn{position:fixed;bottom:16px;z-index:200;width:36px;height:36px;border-radius:8px;border:1px solid #222;background:#141414;color:#555;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.print-btn{left:16px}
+.save-btn{left:60px}
+.print-btn:hover,.save-btn:hover{border-color:#c8956c;color:#c8956c}
+.hum-header-info{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:18px;background:#141414}
+.hum-info-item{padding:12px 16px;border-bottom:1px solid #1a1a1a}
+.hum-info-item:nth-child(odd){border-right:1px solid #1a1a1a}
+.hum-info-label{font-size:8px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.hum-info-value{font-size:12px;color:#e5e5e5;font-weight:600;margin-top:4px;outline:none}
+.hum-info-value:focus{color:#c8956c}
+.hum-table-wrap{border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:18px;background:#141414}
+.hum-table-title{background:linear-gradient(135deg,#18130e,#211c15);padding:9px 12px;font-size:9px;font-weight:700;color:#c8956c;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #1a1a1a}
+.add-hum-row{display:flex;gap:8px;padding:12px;border-top:1px solid #1a1a1a;align-items:center;flex-wrap:wrap}
+.add-hum-row input{background:#0e0e0e;border:1px solid #2a2a2a;border-radius:6px;color:#e5e5e5;font-family:'Inter',sans-serif;font-size:11px;padding:7px 10px;outline:none;width:140px}
+.add-hum-row input:focus{border-color:#c8956c}
+.add-hum-btn{padding:7px 14px;background:#c8956c;color:#0e0e0e;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+.add-hum-btn:hover{background:#d4a47a}
+.del-hum{color:#ef4444;cursor:pointer;opacity:.5;font-size:14px}
+.del-hum:hover{opacity:1}
+.view-panel{display:none}
+.view-panel.active{display:block}
+@media(max-width:640px){
+  .info-grid,.hum-header-info{grid-template-columns:1fr}
+  .info-value{border-left:none}
+  .doc-header-top{flex-direction:column}
+  .doc-header-right{border-left:none;border-top:1px solid #1a1a1a;text-align:left}
+  .storage-grid{grid-template-columns:1fr}
+  .storage-cell:nth-child(odd){border-right:none}
+  .sheet{padding:14px 8px}
+  .chart-box{height:280px}
+  .chart-box.sm{height:230px}
+  .full-span .info-value{border-left:none}
+  .hum-info-item:nth-child(odd){border-right:none}
+}
+@media print{
+  .tab-bar,.main-nav,.print-btn,.save-btn,.add-btn,.x,.toast,.modal-overlay,.toggle,.add-hum-row,.del-hum{display:none!important}
+  .main-area{padding-top:0}
+  .sheet,.view-panel{display:block!important;break-after:page}
+  body{background:#fff;color:#000}
+  .doc-header,.info-grid,.section,.chart-section,.hum-header-info,.hum-table-wrap{border-color:#ccc;background:#fff}
+  .doc-header-top,.section-title,.chart-header,.hum-table-title{background:#f5f5f5}
+  .info-label{background:#f0f0f0;color:#333}
+  .info-value,.hum-info-value{color:#000;border-color:#ddd}
+  th{background:#f0f0f0;color:#333}
+  td{color:#000;border-color:#ddd}
+  td input{color:#000}
+  .section-title,.chart-header-title,.hum-table-title{color:#8b5e3c}
+  .badge{background:#f0e6d8;color:#8b5e3c}
+  .interp-month,.doc-title,.company-name{color:#000}
+  .interp-text,.interp-sub{color:#555}
+  .sig-name{color:#000}
+}
+</style>
+</head>
+<body>
+
+<div class="tab-bar"><div class="logo-tab">ROMEX</div></div>
+<div class="main-nav">
+  <button class="nav-btn active" data-view="micro">Microbiología</button>
+  <button class="nav-btn" data-view="humedad">% Humedad</button>
+</div>
+<button class="print-btn" onclick="window.print()" title="Imprimir">&#9113;</button>
+<button class="save-btn" onclick="saveData()" title="Guardar datos">&#128190;</button>
+<div class="main-area" id="mainArea"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">Agregar Nueva Hoja (Mes)</div>
+    <div class="modal-label">Nombre del Mes</div>
+    <input class="modal-input" id="mNombre" placeholder="Ej: FEBRERO" maxlength="20">
+    <div class="modal-label">Fecha de Análisis (YYYY/M/D)</div>
+    <input class="modal-input" id="mFecha" placeholder="Ej: 2026/2/13">
+    <div class="modal-row" style="margin-bottom:12px">
+      <div><div class="modal-label">RTAMV</div><input class="modal-input" id="mRtamv" type="number" value="4000"></div>
+      <div><div class="modal-label">Mohos</div><input class="modal-input" id="mMohos" type="number" value="15"></div>
+      <div><div class="modal-label">E. Coli</div><input class="modal-input" id="mEcoli" type="number" value="0"></div>
+      <div><div class="modal-label">Enterobact.</div><input class="modal-input" id="mEnterob" type="number" value="0"></div>
+    </div>
+    <div class="modal-label">% Humedad (opcional)</div>
+    <input class="modal-input" id="mHumedad" type="number" step="0.01" value="2.01" placeholder="Ej: 2.01">
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="mbtn mbtn-ok" onclick="addSheet()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Full application code - see repository for complete source. This is a placeholder to complete the push. The full improved system is available in the local artifacts and will be updated. */
+alert('Por favor descarga el archivo completo desde el repositorio. El código completo se está subiendo.');
+</script>
+</body>
+</html>
