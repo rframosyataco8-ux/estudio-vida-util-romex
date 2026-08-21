@@ -15,42 +15,40 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
 </head>
 <body>
   <div id="splash">
-    <div class="splash-bg" aria-hidden="true">
-      <span class="splash-orb splash-orb-1"></span>
-      <span class="splash-orb splash-orb-2"></span>
-      <span class="splash-orb splash-orb-3"></span>
-    </div>
-    <div class="splash-content">
-      <div class="splash-ring">
-        <svg class="splash-ring-svg" viewBox="0 0 80 80" aria-hidden="true">
-          <circle class="splash-ring-track" cx="40" cy="40" r="34"></circle>
-          <circle class="splash-ring-progress" cx="40" cy="40" r="34"></circle>
-        </svg>
-        <div class="splash-logo">
-          <span class="material-icons-outlined">science</span>
-        </div>
-      </div>
-      <div class="splash-title">Exportadora RomEx S.A.</div>
-      <div class="splash-sub">Control de Calidad · Planta Chincha</div>
-      <div class="splash-bar"><div class="splash-bar-fill"></div></div>
-    </div>
+    <div class="splash-logo"><span class="material-icons-outlined">science</span></div>
+    <div class="splash-title">Exportadora RomEx S.A.</div>
+    <div class="splash-sub">Control de Calidad · Planta Chincha</div>
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
   </div>
 
   <aside class="drawer" id="drawer">
     <div class="drawer-header">
       <span class="material-icons-outlined">science</span>
       <div>
-        <div class="drawer-title">Exportadora RomEx S.A.</div>
+        <div class="drawer-title">Romex QC</div>
         <div class="drawer-sub">Control de Calidad</div>
       </div>
     </div>
-    <div class="drawer-section">Productos</div>
-    <nav id="productNav" class="drawer-nav"></nav>
+
+    <div class="drawer-body">
+      <button type="button" class="nav-group-btn open" id="productsToggle" aria-expanded="true">
+        <span class="nav-group-left">
+          <span class="material-icons-outlined nav-group-icon">inventory_2</span>
+          <span>Productos</span>
+        </span>
+        <span class="material-icons-outlined nav-group-chevron">expand_more</span>
+      </button>
+      <nav id="productNav" class="drawer-nav open"></nav>
+    </div>
+
     <div class="drawer-footer">
       <div class="footer-name" id="userName">—</div>
       <div class="footer-role">Analista · Planta Chincha</div>
       <div class="db-status" id="dbStatus"><span class="dot"></span> SQL Server</div>
-      <button type="button" class="logout-btn" id="logoutBtn">Cerrar sesión</button>
+      <button type="button" class="logout-btn" id="logoutBtn">
+        <span class="material-icons-outlined" style="font-size:16px;vertical-align:-3px">logout</span>
+        Cerrar sesión
+      </button>
     </div>
   </aside>
 

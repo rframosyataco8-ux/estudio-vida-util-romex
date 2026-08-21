@@ -1,4 +1,4 @@
-/* Romex QC — SQL, auto-save, login, agregar mes */
+/* Romex QC — SQL, auto-save, login, agregar mes, menú colapsable */
 Chart.register(ChartDataLabels);
 
 var API = (window.API_BASE || '') + '/api';
@@ -11,7 +11,7 @@ var MICRO_LABELS = {rtamv:'RTAMV',mohos:'Mohos',coliformes:'Colif.',ecoli:'E.Col
 var FISICO_LABELS = {humedad:'% Humedad',ph:'pH',ceniza:'% Ceniza',grasa:'% Grasa',fineza:'% Fineza',acidez:'% Acidez'};
 var COLORS = {rtamv:'#1565c0',mohos:'#ef6c00',coliformes:'#2e7d32',ecoli:'#43a047',enterobacterias:'#7b1fa2',levaduras:'#c2185b',saureus:'#c62828',humedad:'#1565c0',ph:'#0288d1',ceniza:'#78909c',grasa:'#f9a825',fineza:'#2e7d32',acidez:'#e53935'};
 
-function hideSplash(){ var s=document.getElementById('splash'); if(s) setTimeout(function(){s.classList.add('hide');},1400); }
+function hideSplash(){ var s=document.getElementById('splash'); if(s) setTimeout(function(){s.classList.add('hide');},1200); }
 async function api(path, opts){
   var r = await fetch(API + path, opts);
   if(!r.ok){ var t=await r.text(); throw new Error(t||r.statusText); }
@@ -19,6 +19,16 @@ async function api(path, opts){
 }
 function setSaveInd(state,text){ var el=document.getElementById('saveInd'); if(!el)return; el.className='save-indicator '+(state||''); el.textContent=text||''; }
 function snack(msg){ var el=document.getElementById('snackbar'); el.textContent=msg; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(function(){el.classList.remove('show');},2800); }
+
+function toggleProductsMenu(){
+  var btn = document.getElementById('productsToggle');
+  var nav = document.getElementById('productNav');
+  if(!btn || !nav) return;
+  var open = !nav.classList.contains('open');
+  nav.classList.toggle('open', open);
+  btn.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
 
 async function init(){
   var un = localStorage.getItem('romex_user');
@@ -42,7 +52,7 @@ async function init(){
 
 function renderNav(){
   document.getElementById('productNav').innerHTML = products.map(function(p){
-    return '<button class="nav-item'+(p.codigo===activeCodigo?' active':'')+'" data-c="'+p.codigo+'">'+p.nombre+'<span class="lote">Lote '+p.lote+'</span></button>';
+    return '<button type="button" class="nav-item'+(p.codigo===activeCodigo?' active':'')+'" data-c="'+p.codigo+'">'+p.nombre+'<span class="lote">Lote '+p.lote+'</span></button>';
   }).join('');
 }
 
@@ -140,6 +150,7 @@ async function addMonth(){
 document.addEventListener('click',function(e){
   if(e.target.closest('#logoutBtn')){ localStorage.removeItem('romex_token'); localStorage.removeItem('romex_user'); location.href='login.html'; return; }
   if(e.target.closest('#addMonthBtn')){ addMonth(); return; }
+  if(e.target.closest('#productsToggle')){ toggleProductsMenu(); return; }
   var ni=e.target.closest('.nav-item');
   if(ni&&sqlReady){ activeCodigo=ni.dataset.c; activeMonth=5; renderNav(); loadAndShow().catch(function(err){snack(err.message);}); return; }
   var tab=e.target.closest('.tab');
