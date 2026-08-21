@@ -1,0 +1,70 @@
+-- ROMEX Control de Calidad - SQL Server (SSMS)
+USE master;
+GO
+IF DB_ID('RomexQC') IS NULL CREATE DATABASE RomexQC;
+GO
+USE RomexQC;
+GO
+
+IF OBJECT_ID('dbo.ResultadosFisico','U') IS NOT NULL DROP TABLE dbo.ResultadosFisico;
+IF OBJECT_ID('dbo.ResultadosMicro','U') IS NOT NULL DROP TABLE dbo.ResultadosMicro;
+IF OBJECT_ID('dbo.Productos','U') IS NOT NULL DROP TABLE dbo.Productos;
+GO
+
+CREATE TABLE dbo.Productos (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  Codigo VARCHAR(50) NOT NULL UNIQUE,
+  Nombre NVARCHAR(120) NOT NULL,
+  Lote VARCHAR(30) NOT NULL,
+  Activo BIT NOT NULL DEFAULT 1,
+  CreadoEn DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+
+CREATE TABLE dbo.ResultadosMicro (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  ProductoId INT NOT NULL REFERENCES dbo.Productos(Id),
+  Anio INT NOT NULL,
+  Mes INT NOT NULL CHECK (Mes BETWEEN 1 AND 12),
+  FechaAnalisis DATE NULL,
+  RTAMV INT NOT NULL DEFAULT 0,
+  Mohos INT NOT NULL DEFAULT 0,
+  Coliformes INT NOT NULL DEFAULT 0,
+  EColi INT NOT NULL DEFAULT 0,
+  Enterobacterias INT NOT NULL DEFAULT 0,
+  Levaduras INT NOT NULL DEFAULT 0,
+  SAureus INT NOT NULL DEFAULT 0,
+  Estado VARCHAR(20) NOT NULL DEFAULT 'LIBERADO',
+  Analista NVARCHAR(80) NULL,
+  LiberadoPor NVARCHAR(80) NULL,
+  Notas NVARCHAR(500) NULL,
+  ActualizadoEn DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT UQ_Micro_Prod_Mes UNIQUE (ProductoId, Anio, Mes)
+);
+GO
+
+CREATE TABLE dbo.ResultadosFisico (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  ProductoId INT NOT NULL REFERENCES dbo.Productos(Id),
+  Anio INT NOT NULL,
+  Mes INT NOT NULL CHECK (Mes BETWEEN 1 AND 12),
+  FechaAnalisis DATE NULL,
+  Humedad DECIMAL(8,2) NULL,
+  PH DECIMAL(6,2) NULL,
+  Ceniza DECIMAL(8,2) NULL,
+  Grasa DECIMAL(8,2) NULL,
+  Fineza DECIMAL(8,2) NULL,
+  Acidez DECIMAL(8,2) NULL,
+  Estado VARCHAR(20) NOT NULL DEFAULT 'CONFORME',
+  Analista NVARCHAR(80) NULL,
+  Notas NVARCHAR(500) NULL,
+  ActualizadoEn DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT UQ_Fisico_Prod_Mes UNIQUE (ProductoId, Anio, Mes)
+);
+GO
+
+CREATE INDEX IX_Micro_AnioMes ON dbo.ResultadosMicro(Anio, Mes);
+CREATE INDEX IX_Fisico_AnioMes ON dbo.ResultadosFisico(Anio, Mes);
+GO
+PRINT 'Esquema RomexQC OK';
+GO
