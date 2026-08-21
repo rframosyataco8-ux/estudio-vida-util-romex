@@ -11,6 +11,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
+  <!-- Animación de entrada -->
+  <div id="splash">
+    <div class="splash-logo"><span class="material-icons-outlined">science</span></div>
+    <div class="splash-title">Romex QC</div>
+    <div class="splash-sub">Control de Calidad · Planta Chincha</div>
+    <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+  </div>
+
   <aside class="drawer" id="drawer">
     <div class="drawer-header">
       <span class="material-icons-outlined">science</span>
@@ -24,6 +32,7 @@
     <div class="drawer-footer">
       <div class="footer-name">Nereyda Huachua Flores</div>
       <div class="footer-role">Analista · Planta Chincha</div>
+      <div class="db-status" id="dbStatus"><span class="dot"></span> SQL Server</div>
     </div>
   </aside>
 
@@ -33,24 +42,23 @@
       <h1 id="productTitle">—</h1>
       <span class="chip" id="loteBadge">—</span>
       <div class="spacer"></div>
+      <span class="save-indicator" id="saveInd"></span>
       <div class="segmented">
         <button class="seg active" data-mode="micro">Microbiología</button>
         <button class="seg" data-mode="fisico">Físicoquímico</button>
       </div>
       <button class="icon-btn" onclick="window.print()" title="Imprimir"><span class="material-icons-outlined">print</span></button>
-      <button class="icon-btn" onclick="saveCurrent()" title="Guardar"><span class="material-icons-outlined">save</span></button>
     </header>
 
     <div class="tabs" id="monthTabs"></div>
     <main class="content" id="content">
-      <div class="loading"><div class="spinner"></div> Cargando…</div>
+      <div class="loading"><div class="spinner"></div> Conectando a SQL Server…</div>
     </main>
   </div>
 
   <div class="snackbar" id="snackbar"></div>
   <script>
-    window.API_BASE = (window.location.port === '8080' || window.location.protocol === 'file:')
-      ? 'http://localhost:3000' : '';
+    window.API_BASE = '';
   </script>
   <script src="js/app.js"></script>
 </body>
