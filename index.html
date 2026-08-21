@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="css/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script>
+if (!localStorage.getItem('romex_token')) location.replace('login.html');
+</script>
 </head>
 <body>
   <div id="splash">
@@ -29,9 +32,10 @@
     <div class="drawer-section">Productos</div>
     <nav id="productNav" class="drawer-nav"></nav>
     <div class="drawer-footer">
-      <div class="footer-name">Nereyda Huachua Flores</div>
+      <div class="footer-name" id="userName">—</div>
       <div class="footer-role">Analista · Planta Chincha</div>
       <div class="db-status" id="dbStatus"><span class="dot"></span> SQL Server</div>
+      <button type="button" class="logout-btn" id="logoutBtn">Cerrar sesión</button>
     </div>
   </aside>
 
@@ -46,6 +50,7 @@
         <button class="seg active" data-mode="micro">Microbiología</button>
         <button class="seg" data-mode="fisico">Físicoquímico</button>
       </div>
+      <button class="icon-btn" id="addMonthBtn" title="Agregar mes"><span class="material-icons-outlined">add_circle_outline</span></button>
       <button class="icon-btn" onclick="window.print()" title="Imprimir"><span class="material-icons-outlined">print</span></button>
     </header>
 
@@ -57,12 +62,9 @@
 
   <div class="snackbar" id="snackbar"></div>
   <script>
-    // Live Server (5500/5501) o file:// → API en el puerto 3000
-    // Si abres http://localhost:3000, usa la misma origen
     (function () {
       var p = window.location.port;
-      var proto = window.location.protocol;
-      if (proto === 'file:' || p === '5500' || p === '5501' || p === '8080') {
+      if (p === '5500' || p === '5501' || p === '8080' || location.protocol === 'file:') {
         window.API_BASE = 'http://localhost:3000';
       } else {
         window.API_BASE = '';
