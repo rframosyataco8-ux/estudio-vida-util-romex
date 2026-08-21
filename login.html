@@ -17,6 +17,8 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
 .field label{display:block;font-size:13px;font-weight:600;color:#5a6a9a;margin-bottom:4px}
 .field input{width:100%;border:none;border-bottom:2px solid #40549b;background:transparent;padding:6px 0 7px;font-size:13px;font-family:inherit;color:#1e2a6e;outline:none}
 .field input:focus{border-bottom-color:#5b6cff}
+.field input.invalid{border-bottom-color:#c62828}
+.field .hint{font-size:11px;color:#c62828;margin-top:4px;min-height:14px}
 .row{display:flex;align-items:center;justify-content:space-between;margin:7px 0 25px;font-size:11px;color:#2c448f}
 .row label{display:flex;align-items:center;gap:6px;cursor:pointer}
 .btn{width:100%;border:none;border-radius:0;padding:15px;background:#7182f6;color:#fff;font-size:15px;font-weight:600;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:.2s}
@@ -34,14 +36,16 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
     <div class="brand">Exportadora RomEx S.A.</div>
     <div class="panel">
       <h1>BIENVENIDO</h1>
-      <form id="form">
+      <form id="form" novalidate>
         <div class="field">
           <label>Usuario</label>
-          <input type="text" id="user" placeholder="usuario" required autofocus autocomplete="username">
+          <input type="text" id="user" placeholder="usuario" required autofocus autocomplete="username" maxlength="50">
+          <div class="hint" id="userHint"></div>
         </div>
         <div class="field">
           <label>Contraseña</label>
-          <input type="password" id="pass" placeholder="••••••••" required autocomplete="current-password">
+          <input type="password" id="pass" placeholder="••••••••" required autocomplete="current-password" maxlength="128">
+          <div class="hint" id="passHint"></div>
         </div>
         <div class="row">
           <label><input type="checkbox" id="remember"> Recordarme</label>
@@ -64,11 +68,50 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
   var API = (location.port === '5500' || location.port === '5501' || location.protocol === 'file:')
     ? 'http://localhost:3000' : '';
 
+  function validateLogin() {
+    var u = document.getElementById('user');
+    var p = document.getElementById('pass');
+    var uh = document.getElementById('userHint');
+    var ph = document.getElementById('passHint');
+    var ok = true;
+    uh.textContent = '';
+    ph.textContent = '';
+    u.classList.remove('invalid');
+    p.classList.remove('invalid');
+
+    var user = u.value.trim();
+    var pass = p.value;
+
+    if (!user) {
+      uh.textContent = 'Ingresa tu usuario';
+      u.classList.add('invalid');
+      ok = false;
+    } else if (user.length < 3) {
+      uh.textContent = 'Mínimo 3 caracteres';
+      u.classList.add('invalid');
+      ok = false;
+    }
+
+    if (!pass) {
+      ph.textContent = 'Ingresa tu contraseña';
+      p.classList.add('invalid');
+      ok = false;
+    } else if (pass.length < 4) {
+      ph.textContent = 'Mínimo 4 caracteres';
+      p.classList.add('invalid');
+      ok = false;
+    }
+
+    return ok;
+  }
+
   document.getElementById('form').addEventListener('submit', async function (e) {
     e.preventDefault();
-    var btn = document.getElementById('btn');
     var err = document.getElementById('err');
     err.textContent = '';
+    if (!validateLogin()) return;
+
+    var btn = document.getElementById('btn');
     btn.disabled = true;
     btn.textContent = 'INGRESANDO…';
     try {
@@ -82,13 +125,12 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
       });
       var data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Credenciales inválidas');
-      var store = document.getElementById('remember').checked ? localStorage : sessionStorage;
-      store.setItem('romex_token', data.token);
-      store.setItem('romex_user', data.nombre || data.user);
-      store.setItem('romex_rol', data.rol || 'LECTOR');
       localStorage.setItem('romex_token', data.token);
       localStorage.setItem('romex_user', data.nombre || data.user);
       localStorage.setItem('romex_rol', data.rol || 'LECTOR');
+      if (!document.getElementById('remember').checked) {
+        sessionStorage.setItem('romex_token', data.token);
+      }
       location.href = 'index.html';
     } catch (ex) {
       err.textContent = ex.message || 'Error de conexión';

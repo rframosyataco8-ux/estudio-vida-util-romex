@@ -1,6 +1,6 @@
 /**
  * Romex QC API
- * Auth por token (tabla Sesiones) + roles ADMIN / LECTOR
+ * Auth: bcrypt + tokens en Sesiones · roles ADMIN / LECTOR
  */
 'use strict';
 
@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(cors());
@@ -17,10 +18,9 @@ app.use(express.json({ limit: '1mb' }));
 const PORT = process.env.PORT || 3000;
 const DB_TYPE = (process.env.DB_TYPE || 'mssql').toLowerCase();
 const TOKEN_HOURS = 12;
+const BCRYPT_ROUNDS = 10;
 
 let pool = null;
-
-/* ───────────── helpers ───────────── */
 
 function sha256(text) {
   return crypto.createHash('sha256').update(String(text), 'utf8').digest('hex');
@@ -28,6 +28,28 @@ function sha256(text) {
 
 function newToken() {
   return crypto.randomBytes(32).toString('hex');
+}
+
+function isBcryptHash(h) {
+  return typeof h === 'string' && /^\$2[aby]\$\d{2}\$/.test(h);
+}
+
+async function verifyPassword(plain, storedHash) {
+  if (!storedHash) return false;
+  if (isBcryptHash(storedHash)) {
+    return bcrypt.compare(plain, storedHash);
+  }
+  // Compatibilidad con hashes SHA-256 antiguos
+  return sha256(plain) === String(storedHash).toLowerCase();
+}
+
+async function upgradeToBcrypt(userId, plain) {
+  const hash = await bcrypt.hash(plain, BCRYPT_ROUNDS);
+  if (DB_TYPE === 'mssql') {
+    await q('UPDATE dbo.Usuarios SET PasswordHash=@p0 WHERE Id=@p1', [hash, userId]);
+  } else {
+    await q('UPDATE usuarios SET password_hash=$1 WHERE id=$2', [hash, userId]);
+  }
 }
 
 function slugify(name) {
@@ -77,8 +99,6 @@ async function q(text, params) {
   return pool.query(text, params);
 }
 
-/* ───────────── auth middleware ───────────── */
-
 async function resolveSession(token) {
   if (!token || token.length < 16) return null;
   if (DB_TYPE === 'mssql') {
@@ -118,8 +138,6 @@ function adminRequired(req, res, next) {
   next();
 }
 
-/* ───────────── routes ───────────── */
-
 app.get('/api/health', function (_req, res) {
   res.json({ ok: true, db: DB_TYPE });
 });
@@ -128,50 +146,58 @@ app.post('/api/login', async function (req, res) {
   try {
     const user = String(req.body.user || '').trim().toLowerCase();
     const pass = String(req.body.pass || '');
-    if (!user || !pass) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
-
-    const hash = sha256(pass);
-    let found;
-
-    if (DB_TYPE === 'mssql') {
-      const r = await q(
-        'SELECT Id as id, Usuario as usuario, Nombre as nombre, Rol as rol ' +
-        'FROM dbo.Usuarios WHERE LOWER(Usuario)=@p0 AND PasswordHash=@p1 AND Activo=1',
-        [user, hash]
-      );
-      found = r.rows[0];
-    } else {
-      const r = await q(
-        'SELECT id, usuario, nombre, rol FROM usuarios ' +
-        'WHERE LOWER(usuario)=$1 AND password_hash=$2 AND activo=true',
-        [user, hash]
-      );
-      found = r.rows[0];
+    if (!user || !pass) {
+      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    }
+    if (user.length > 50 || pass.length > 128) {
+      return res.status(400).json({ error: 'Datos de acceso inválidos' });
     }
 
-    if (!found) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    let row;
+    if (DB_TYPE === 'mssql') {
+      const r = await q(
+        'SELECT Id as id, Usuario as usuario, Nombre as nombre, Rol as rol, PasswordHash as password_hash ' +
+        'FROM dbo.Usuarios WHERE LOWER(Usuario)=@p0 AND Activo=1',
+        [user]
+      );
+      row = r.rows[0];
+    } else {
+      const r = await q(
+        'SELECT id, usuario, nombre, rol, password_hash FROM usuarios WHERE LOWER(usuario)=$1 AND activo=true',
+        [user]
+      );
+      row = r.rows[0];
+    }
+
+    if (!row) {
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+    const ok = await verifyPassword(pass, row.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+    // Migrar SHA-256 → bcrypt en el primer login exitoso
+    if (!isBcryptHash(row.password_hash)) {
+      try { await upgradeToBcrypt(row.id, pass); } catch (e) { console.warn('upgrade bcrypt:', e.message); }
+    }
 
     const token = newToken();
     const expira = new Date(Date.now() + TOKEN_HOURS * 3600 * 1000);
 
     if (DB_TYPE === 'mssql') {
-      await q(
-        'INSERT INTO dbo.Sesiones (UsuarioId, Token, ExpiraEn) VALUES (@p0, @p1, @p2)',
-        [found.id, token, expira]
-      );
+      await q('INSERT INTO dbo.Sesiones (UsuarioId, Token, ExpiraEn) VALUES (@p0, @p1, @p2)', [row.id, token, expira]);
     } else {
-      await q(
-        'INSERT INTO sesiones (usuario_id, token, expira_en) VALUES ($1,$2,$3)',
-        [found.id, token, expira]
-      );
+      await q('INSERT INTO sesiones (usuario_id, token, expira_en) VALUES ($1,$2,$3)', [row.id, token, expira]);
     }
 
     res.json({
       ok: true,
       token: token,
-      user: found.usuario,
-      nombre: found.nombre,
-      rol: found.rol
+      user: row.usuario,
+      nombre: row.nombre,
+      rol: row.rol
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -194,11 +220,7 @@ app.post('/api/logout', authRequired, async function (req, res) {
 });
 
 app.get('/api/me', authRequired, function (req, res) {
-  res.json({
-    user: req.user.usuario,
-    nombre: req.user.nombre,
-    rol: req.user.rol
-  });
+  res.json({ user: req.user.usuario, nombre: req.user.nombre, rol: req.user.rol });
 });
 
 app.get('/api/productos', authRequired, async function (_req, res) {
@@ -217,29 +239,24 @@ app.post('/api/productos', authRequired, adminRequired, async function (req, res
     const nombre = String(req.body.nombre || '').trim();
     const lote = String(req.body.lote || '').trim();
     let codigo = String(req.body.codigo || '').trim().toLowerCase();
-    if (!nombre || !lote) return res.status(400).json({ error: 'Nombre y lote son obligatorios' });
+    if (!nombre || nombre.length < 2) return res.status(400).json({ error: 'Nombre inválido (mín. 2 caracteres)' });
+    if (!lote || lote.length < 2) return res.status(400).json({ error: 'Lote inválido (mín. 2 caracteres)' });
+    if (nombre.length > 120) return res.status(400).json({ error: 'Nombre demasiado largo' });
+    if (lote.length > 30) return res.status(400).json({ error: 'Lote demasiado largo' });
     if (!codigo) codigo = slugify(nombre);
+    if (!/^[a-z0-9_]+$/.test(codigo)) return res.status(400).json({ error: 'Código solo puede tener letras, números y _' });
 
     if (DB_TYPE === 'mssql') {
       const exists = await q('SELECT Id FROM dbo.Productos WHERE Codigo=@p0', [codigo]);
       if (exists.rows.length) return res.status(409).json({ error: 'Ya existe un producto con ese código' });
-      await q(
-        'INSERT INTO dbo.Productos (Codigo, Nombre, Lote) VALUES (@p0, @p1, @p2)',
-        [codigo, nombre, lote]
-      );
-      const r = await q(
-        'SELECT Id as id, Codigo as codigo, Nombre as nombre, Lote as lote FROM dbo.Productos WHERE Codigo=@p0',
-        [codigo]
-      );
+      await q('INSERT INTO dbo.Productos (Codigo, Nombre, Lote) VALUES (@p0, @p1, @p2)', [codigo, nombre, lote]);
+      const r = await q('SELECT Id as id, Codigo as codigo, Nombre as nombre, Lote as lote FROM dbo.Productos WHERE Codigo=@p0', [codigo]);
       return res.status(201).json(r.rows[0]);
     }
 
     const exists = await q('SELECT id FROM productos WHERE codigo=$1', [codigo]);
     if (exists.rows.length) return res.status(409).json({ error: 'Ya existe un producto con ese código' });
-    const r = await q(
-      'INSERT INTO productos (codigo, nombre, lote) VALUES ($1,$2,$3) RETURNING id, codigo, nombre, lote',
-      [codigo, nombre, lote]
-    );
+    const r = await q('INSERT INTO productos (codigo, nombre, lote) VALUES ($1,$2,$3) RETURNING id, codigo, nombre, lote', [codigo, nombre, lote]);
     res.status(201).json(r.rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -320,7 +337,6 @@ app.put('/api/productos/:codigo/fisico/:mes', authRequired, adminRequired, async
   }
 });
 
-/** Agregar mes con datos iniciales */
 app.post('/api/productos/:codigo/mes', authRequired, adminRequired, async function (req, res) {
   try {
     const codigo = req.params.codigo;
@@ -330,6 +346,9 @@ app.post('/api/productos/:codigo/mes', authRequired, adminRequired, async functi
     const micro = req.body.micro || {};
     const fisico = req.body.fisico || {};
 
+    if (!Number.isFinite(anio) || anio < 2020 || anio > 2099) {
+      return res.status(400).json({ error: 'Año inválido' });
+    }
     if (!mes || mes < 1 || mes > 12) return res.status(400).json({ error: 'Mes inválido (1-12)' });
 
     if (DB_TYPE === 'mssql') {
@@ -337,48 +356,25 @@ app.post('/api/productos/:codigo/mes', authRequired, adminRequired, async functi
       if (!prod.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
       const pid = prod.rows[0].id;
 
-      const existsM = await q(
-        'SELECT Id FROM dbo.ResultadosMicro WHERE ProductoId=@p0 AND Anio=@p1 AND Mes=@p2',
-        [pid, anio, mes]
-      );
+      const existsM = await q('SELECT Id FROM dbo.ResultadosMicro WHERE ProductoId=@p0 AND Anio=@p1 AND Mes=@p2', [pid, anio, mes]);
       if (existsM.rows.length) return res.status(409).json({ error: 'Ya existe ese mes para este producto' });
 
       await q(
         'INSERT INTO dbo.ResultadosMicro (ProductoId,Anio,Mes,FechaAnalisis,RTAMV,Mohos,Coliformes,EColi,Enterobacterias,Levaduras,SAureus,Analista,LiberadoPor) ' +
         'VALUES (@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,@p10,N\'ZORKA\',N\'NEREYDA\')',
-        [
-          pid, anio, mes, fecha,
-          micro.rtamv || 0, micro.mohos || 0, micro.coliformes || 0, micro.ecoli || 0,
-          micro.enterobacterias || 0, micro.levaduras || 0, micro.saureus || 0
-        ]
+        [pid, anio, mes, fecha, micro.rtamv || 0, micro.mohos || 0, micro.coliformes || 0, micro.ecoli || 0, micro.enterobacterias || 0, micro.levaduras || 0, micro.saureus || 0]
       );
       await q(
         'INSERT INTO dbo.ResultadosFisico (ProductoId,Anio,Mes,FechaAnalisis,Humedad,PH,Ceniza,Grasa,Fineza,Acidez,Analista) ' +
         'VALUES (@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,N\'NEREYDA\')',
-        [
-          pid, anio, mes, fecha,
-          fisico.humedad != null ? fisico.humedad : null,
-          fisico.ph != null ? fisico.ph : null,
-          fisico.ceniza != null ? fisico.ceniza : null,
-          fisico.grasa != null ? fisico.grasa : null,
-          fisico.fineza != null ? fisico.fineza : null,
-          fisico.acidez != null ? fisico.acidez : null
-        ]
+        [pid, anio, mes, fecha, fisico.humedad != null ? fisico.humedad : null, fisico.ph != null ? fisico.ph : null, fisico.ceniza != null ? fisico.ceniza : null, fisico.grasa != null ? fisico.grasa : null, fisico.fineza != null ? fisico.fineza : null, fisico.acidez != null ? fisico.acidez : null]
       );
     } else {
       const prod2 = await q('SELECT id FROM productos WHERE codigo=$1 AND activo=true', [codigo]);
       if (!prod2.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
       const pid2 = prod2.rows[0].id;
-      await q(
-        'INSERT INTO resultados_micro (producto_id,anio,mes,fecha_analisis,rtamv,mohos,coliformes,ecoli,enterobacterias,levaduras,saureus) ' +
-        'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
-        [pid2, anio, mes, fecha, micro.rtamv || 0, micro.mohos || 0, micro.coliformes || 0, micro.ecoli || 0, micro.enterobacterias || 0, micro.levaduras || 0, micro.saureus || 0]
-      );
-      await q(
-        'INSERT INTO resultados_fisico (producto_id,anio,mes,fecha_analisis,humedad,ph,ceniza,grasa,fineza,acidez) ' +
-        'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-        [pid2, anio, mes, fecha, fisico.humedad, fisico.ph, fisico.ceniza, fisico.grasa, fisico.fineza, fisico.acidez]
-      );
+      await q('INSERT INTO resultados_micro (producto_id,anio,mes,fecha_analisis,rtamv,mohos,coliformes,ecoli,enterobacterias,levaduras,saureus) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)', [pid2, anio, mes, fecha, micro.rtamv || 0, micro.mohos || 0, micro.coliformes || 0, micro.ecoli || 0, micro.enterobacterias || 0, micro.levaduras || 0, micro.saureus || 0]);
+      await q('INSERT INTO resultados_fisico (producto_id,anio,mes,fecha_analisis,humedad,ph,ceniza,grasa,fineza,acidez) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [pid2, anio, mes, fecha, fisico.humedad, fisico.ph, fisico.ceniza, fisico.grasa, fisico.fineza, fisico.acidez]);
     }
 
     res.status(201).json({ ok: true, mes: mes, anio: anio });
