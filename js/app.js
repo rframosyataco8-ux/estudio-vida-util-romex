@@ -1,244 +1,297 @@
-/* ROMEX QC — datos desde data/products.json + IndexedDB */
+/* Romex QC — Material Design + API */
 Chart.register(ChartDataLabels);
 
-const DB_NAME = 'romex_qc_db';
-const DB_STORE = 'results';
-const DB_VER = 1;
+var API = (window.API_BASE || '') + '/api';
+var MONTH_NAMES = ['','ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 
-const FIELD_LABELS = {
-  rtamv:'RTAMV', mohos:'Mohos', coliformes:'Coliformes', ecoli:'E.Coli',
-  enterob:'Enterob.', levaduras:'Levaduras', saureus:'S.Aureus',
-  humedad:'% Humedad', ph:'pH', ceniza:'% Ceniza', grasa:'% Grasa',
-  fineza:'% Fineza', acidez:'% Acidez'
+var products = [];
+var activeCodigo = null;
+var activeMonth = 5;
+var activeMode = 'micro';
+var microRows = [];
+var fisicoRows = [];
+var chartMain = null;
+var chartTrend = null;
+
+var MICRO_KEYS = ['rtamv','mohos','coliformes','ecoli','enterobacterias','levaduras','saureus'];
+var MICRO_LABELS = {rtamv:'RTAMV',mohos:'Mohos',coliformes:'Colif.',ecoli:'E.Coli',enterobacterias:'Enterob.',levaduras:'Levad.',saureus:'S.Aur.'};
+var FISICO_LABELS = {humedad:'% Humedad',ph:'pH',ceniza:'% Ceniza',grasa:'% Grasa',fineza:'% Fineza',acidez:'% Acidez'};
+var COLORS = {
+  rtamv:'#1565c0',mohos:'#ef6c00',coliformes:'#2e7d32',ecoli:'#43a047',
+  enterobacterias:'#7b1fa2',levaduras:'#c2185b',saureus:'#c62828',
+  humedad:'#1565c0',ph:'#0288d1',ceniza:'#78909c',grasa:'#f9a825',fineza:'#2e7d32',acidez:'#e53935'
 };
-const CHART_COLORS = {
-  rtamv:'rgba(70,140,255,.85)', mohos:'rgba(255,160,30,.85)',
-  coliformes:'rgba(50,205,100,.85)', ecoli:'rgba(50,205,100,.7)',
-  enterob:'rgba(180,100,255,.85)', levaduras:'rgba(255,100,150,.85)',
-  saureus:'rgba(255,80,80,.85)',
-  humedad:'rgba(200,149,108,.9)', ph:'rgba(70,140,255,.85)',
-  ceniza:'rgba(160,160,160,.85)', grasa:'rgba(255,180,50,.85)',
-  fineza:'rgba(50,205,100,.85)', acidez:'rgba(255,100,100,.85)'
+
+/* Fallback local si la API no está (Live Server sin backend) */
+var FALLBACK = {
+  products: [
+    {codigo:'torta_natural',nombre:'Torta Natural de Cacao',lote:'44260304'},
+    {codigo:'torta_alcalina',nombre:'Torta Alcalina de Cacao',lote:'13260318'},
+    {codigo:'cocoa_natural',nombre:'Cocoa Natural',lote:'11260513'},
+    {codigo:'cocoa_alcalina',nombre:'Cocoa Alcalina',lote:'07260324'},
+    {codigo:'licor',nombre:'Licor de Cacao',lote:'260516'},
+    {codigo:'manteca',nombre:'Manteca de Cacao',lote:'19260321'}
+  ],
+  micro: {
+    torta_natural: [[900,10],[910,10],[920,10],[960,20],[980,20],[990,10],[1000,20],[1010,10]],
+    torta_alcalina: [[40,0],[40,0],[50,0],[60,0],[60,0],[70,0],[70,0],[80,0]],
+    cocoa_natural: [[1400,15],[1420,20],[1440,15],[1500,20],[1520,20],[1540,15],[1560,20],[1580,20]],
+    cocoa_alcalina: [[1100,0],[1120,0],[1130,0],[1180,0],[1200,0],[1210,0],[1230,0],[1240,0]],
+    licor: [[300,0],[300,0],[310,0],[330,0],[340,0],[340,0],[350,0],[360,0]],
+    manteca: [[50,0],[50,0],[50,0],[60,0],[60,0],[60,0],[70,0],[70,0]]
+  },
+  fisico: {
+    torta_natural: [[2.22,5.40,8.30,12.11],[2.21,5.41,8.28,12.10],[2.20,5.39,8.31,12.12],[2.25,5.42,8.35,12.15],[2.26,5.43,8.36,12.16],[2.24,5.41,8.34,12.14],[2.27,5.44,8.37,12.18],[2.28,5.45,8.38,12.19]],
+    torta_alcalina: [[3.54,6.81,11.60,11.68],[3.52,6.80,11.58,11.67],[3.53,6.82,11.61,11.69],[3.58,6.84,11.65,11.72],[3.59,6.85,11.66,11.73],[3.57,6.83,11.64,11.71],[3.60,6.86,11.68,11.74],[3.61,6.87,11.69,11.75]],
+    cocoa_natural: [[2.49,5.39,8.20,11.80,99.49],[2.48,5.38,8.18,11.79,99.48],[2.47,5.40,8.21,11.81,99.50],[2.52,5.42,8.25,11.85,99.45],[2.53,5.43,8.26,11.86,99.44],[2.51,5.41,8.24,11.84,99.46],[2.54,5.44,8.27,11.87,99.43],[2.55,5.45,8.28,11.88,99.42]],
+    cocoa_alcalina: [[2.76,6.87,10.30,11.62,98.51],[2.75,6.86,10.28,11.61,98.52],[2.74,6.88,10.31,11.63,98.50],[2.80,6.90,10.35,11.66,98.48],[2.81,6.91,10.36,11.67,98.47],[2.79,6.89,10.34,11.65,98.49],[2.82,6.92,10.37,11.68,98.46],[2.83,6.93,10.38,11.69,98.45]],
+    licor: [[0.55,5.42,3.90,48.65,99.74,2.10],[0.54,5.41,3.88,48.62,99.75,2.09],[0.55,5.43,3.91,48.68,99.73,2.11],[0.58,5.45,3.95,48.80,99.70,2.15],[0.59,5.46,3.96,48.85,99.69,2.16],[0.57,5.44,3.94,48.78,99.71,2.14],[0.60,5.47,3.97,48.90,99.68,2.17],[0.61,5.48,3.98,48.95,99.67,2.18]],
+    manteca: [[0.02,null,null,null,null,1.64],[0.02,null,null,null,null,1.63],[0.02,null,null,null,null,1.65],[0.03,null,null,null,null,1.68],[0.03,null,null,null,null,1.69],[0.03,null,null,null,null,1.67],[0.03,null,null,null,null,1.70],[0.04,null,null,null,null,1.71]]
+  }
 };
 
-let META = {}, MONTHS = [], PRODUCTS = {};
-let DATA = {};
-let activeProduct = 'torta_alcalina';
-let activeMonth = 0;
-let activeMode = 'micro';
-let chartInstance = null;
-
-function openDB() {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open(DB_NAME, DB_VER);
-    r.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
-    };
-    r.onsuccess = e => res(e.target.result);
-    r.onerror = e => rej(e.target.error);
+function buildFallbackMicro(codigo) {
+  var arr = FALLBACK.micro[codigo] || FALLBACK.micro.torta_natural;
+  return arr.map(function(v, i) {
+    return { mes: i+5, anio: 2026, rtamv: v[0], mohos: v[1], coliformes: 0, ecoli: 0, enterobacterias: 0, levaduras: 0, saureus: 0, estado: 'LIBERADO', fecha_analisis: '2026-' + String(i+5).padStart(2,'0') + '-12' };
+  });
+}
+function buildFallbackFisico(codigo) {
+  var arr = FALLBACK.fisico[codigo] || FALLBACK.fisico.torta_natural;
+  return arr.map(function(v, i) {
+    return { mes: i+5, anio: 2026, humedad: v[0], ph: v[1], ceniza: v[2], grasa: v[3], fineza: v[4], acidez: v[5], estado: 'CONFORME', fecha_analisis: '2026-' + String(i+5).padStart(2,'0') + '-12' };
   });
 }
 
-async function dbGet(key) {
-  const db = await openDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(DB_STORE, 'readonly');
-    const req = tx.objectStore(DB_STORE).get(key);
-    req.onsuccess = () => res(req.result);
-    req.onerror = () => rej(req.error);
-  });
-}
-
-async function dbSet(key, val) {
-  const db = await openDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    tx.objectStore(DB_STORE).put(val, key);
-    tx.oncomplete = () => res();
-    tx.onerror = () => rej(tx.error);
-  });
-}
-
-function vary(base, monthIdx, isMicro) {
-  const drift = monthIdx * (isMicro ? 0.015 : 0.008);
-  const amp = monthIdx >= 3 ? 0.06 : 0.025;
-  const noise = Math.sin(monthIdx * 1.7 + base * 0.01) * amp;
-  let v = base * (1 + drift + noise);
-  if (base === 0) v = (monthIdx >= 4 && Math.sin(monthIdx * 3.1) > 0.7) ? 10 : 0;
-  return isMicro ? Math.max(0, Math.round(v / 10) * 10) : Math.round(v * 100) / 100;
-}
-
-function buildMonthData(prodKey, monthIdx) {
-  const p = PRODUCTS[prodKey];
-  const micro = {}, fisico = {};
-  Object.keys(p.microBase).forEach(k => { micro[k] = vary(p.microBase[k], monthIdx, true); });
-  Object.keys(p.fisicoBase).forEach(k => { fisico[k] = vary(p.fisicoBase[k], monthIdx, false); });
-  const mo = MONTHS[monthIdx];
-  return { micro, fisico, fa: mo.y + '/' + mo.m + '/' + (10 + monthIdx % 5), fp: mo.y + '/5/12' };
-}
-
-function generateAll() {
-  const data = {};
-  Object.keys(PRODUCTS).forEach(pk => { data[pk] = MONTHS.map((_, i) => buildMonthData(pk, i)); });
-  return data;
+async function api(path, opts) {
+  var r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
 }
 
 async function init() {
-  document.getElementById('content').innerHTML = '<div class="loading">Cargando base de datos…</div>';
   try {
-    const res = await fetch('data/products.json');
-    if (!res.ok) throw new Error('No se pudo cargar products.json');
-    const seed = await res.json();
-    META = seed.meta; MONTHS = seed.months; PRODUCTS = seed.products;
-    const saved = await dbGet('results');
-    if (saved && saved.version === 2) DATA = saved.data;
-    else { DATA = generateAll(); await dbSet('results', { version: 2, data: DATA }); }
-    render();
-  } catch (err) {
-    console.error(err);
-    document.getElementById('content').innerHTML =
-      '<div class="loading">Error al cargar datos. Usa un servidor local (no file://).<br><small>' + err.message + '</small></div>';
+    products = await api('/productos');
+    if (!products.length) throw new Error('Sin productos');
+    activeCodigo = products[0].codigo;
+    renderNav();
+    await loadAndShow();
+  } catch (e) {
+    console.warn('API no disponible, usando datos locales:', e.message);
+    products = FALLBACK.products;
+    activeCodigo = products[0].codigo;
+    renderNav();
+    microRows = buildFallbackMicro(activeCodigo);
+    fisicoRows = buildFallbackFisico(activeCodigo);
+    renderTabs();
+    var p = products[0];
+    document.getElementById('productTitle').textContent = p.nombre;
+    document.getElementById('loteBadge').textContent = 'Lote ' + p.lote;
+    if (activeMode === 'micro') renderMicro(p); else renderFisico(p);
+    snack('Modo local (sin servidor SQL)');
   }
 }
 
-function render() {
-  renderProductNav(); renderMonthTabs();
-  document.getElementById('productTitle').textContent = PRODUCTS[activeProduct].name;
-  document.getElementById('loteBadge').textContent = 'Lote ' + PRODUCTS[activeProduct].lote;
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === activeMode));
-  if (activeMode === 'micro') renderMicro(); else renderFisico();
-}
-
-function renderProductNav() {
-  document.getElementById('productNav').innerHTML = Object.keys(PRODUCTS).map(pk => {
-    const p = PRODUCTS[pk];
-    return '<button class="prod-btn' + (pk === activeProduct ? ' active' : '') + '" data-p="' + pk + '">' +
-      p.name + '<span class="lote">' + p.lote + '</span></button>';
+function renderNav() {
+  document.getElementById('productNav').innerHTML = products.map(function(p) {
+    return '<button class="nav-item' + (p.codigo === activeCodigo ? ' active' : '') + '" data-c="' + p.codigo + '">' +
+      p.nombre + '<span class="lote">Lote ' + p.lote + '</span></button>';
   }).join('');
 }
 
-function renderMonthTabs() {
-  document.getElementById('monthTabs').innerHTML = MONTHS.map((m, i) =>
-    '<button class="month-tab' + (i === activeMonth ? ' active' : '') + '" data-m="' + i + '">' + m.n + '</button>'
-  ).join('');
+function renderTabs() {
+  var months = [];
+  (microRows.concat(fisicoRows)).forEach(function(r) {
+    if (months.indexOf(r.mes) < 0) months.push(r.mes);
+  });
+  months.sort(function(a,b){ return a-b; });
+  if (months.indexOf(activeMonth) < 0 && months.length) activeMonth = months[0];
+  document.getElementById('monthTabs').innerHTML = months.map(function(m) {
+    return '<button class="tab' + (m === activeMonth ? ' active' : '') + '" data-m="' + m + '">' + MONTH_NAMES[m] + '</button>';
+  }).join('');
 }
 
-function renderMicro() {
-  const p = PRODUCTS[activeProduct], d = DATA[activeProduct][activeMonth], mo = MONTHS[activeMonth], m = d.micro;
-  document.getElementById('content').innerHTML =
-    '<div class="card full"><div class="doc-hdr"><div><div class="doc-company">' + META.company + '</div><div class="doc-plant">' + META.plant + ' \u00b7 Microbiolog\u00eda</div></div><div class="doc-meta">C\u00f3digo: ' + META.code + '<br>Edici\u00f3n: ' + META.edition + '<br>' + META.emission + '</div></div>' +
-    '<div class="doc-title">An\u00e1lisis Microbiol\u00f3gico \u00b7 ' + p.name + ' \u00b7 ' + mo.n + ' ' + mo.y + '</div>' +
-    '<div class="info-grid"><div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + p.name + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Fecha an\u00e1lisis</div><div class="info-val" contenteditable="true">' + d.fa + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="pill pill-ok">LIBERADO</span></div></div></div></div>' +
-    '<div class="card"><div class="card-head">Resultados</div><div class="table-wrap"><table><thead><tr><th>RTAMV</th><th>Mohos</th><th>Colif.</th><th>E.Coli</th><th>Enterob.</th><th>Levad.</th><th>S.Aur.</th></tr></thead><tbody><tr>' +
-    ['rtamv','mohos','coliformes','ecoli','enterob','levaduras','saureus'].map(k =>
-      '<td><input type="number" data-f="' + k + '" value="' + m[k] + '"></td>'
-    ).join('') + '</tr></tbody></table></div></div>' +
-    '<div class="card"><div class="card-head">Gr\u00e1fico \u00b7 ' + mo.n + '</div><div class="chart-box"><canvas id="chartMain"></canvas></div></div>' +
-    '<div class="card full"><div class="card-head">Tendencia acumulada</div><div class="chart-box sm"><canvas id="chartTrend"></canvas></div></div>' +
-    '<div class="card full"><div class="card-head">Interpretaci\u00f3n</div><div class="interp" contenteditable="true">Resultados de <strong>' + p.name + '</strong> (Lote ' + p.lote + ') \u2014 <strong>' + mo.n + ' ' + mo.y + '</strong>: dentro de l\u00edmites. Pat\u00f3genos <10 ufc/gr. <strong>LIBERADO</strong>. Analista: ZORKA \u00b7 Liberado: ' + META.analyst + '.</div>' +
-    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">' + META.analyst + '</div></div></div></div>';
-  setTimeout(function(){ drawMicroBar(m); drawMicroTrend(); }, 30);
+async function loadAndShow() {
+  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div> Cargando…</div>';
+  var p = products.find(function(x){ return x.codigo === activeCodigo; });
+  document.getElementById('productTitle').textContent = p.nombre;
+  document.getElementById('loteBadge').textContent = 'Lote ' + p.lote;
+  document.querySelectorAll('.seg').forEach(function(b){ b.classList.toggle('active', b.dataset.mode === activeMode); });
+  try {
+    microRows = await api('/productos/' + activeCodigo + '/micro?anio=2026');
+    fisicoRows = await api('/productos/' + activeCodigo + '/fisico?anio=2026');
+  } catch (e) {
+    microRows = buildFallbackMicro(activeCodigo);
+    fisicoRows = buildFallbackFisico(activeCodigo);
+  }
+  renderTabs();
+  if (activeMode === 'micro') renderMicro(p); else renderFisico(p);
 }
 
-function renderFisico() {
-  const p = PRODUCTS[activeProduct], d = DATA[activeProduct][activeMonth], mo = MONTHS[activeMonth], f = d.fisico, fields = p.fisicoFields;
-  const ths = fields.map(function(k){ return '<th>' + FIELD_LABELS[k] + '</th>'; }).join('');
-  const tds = fields.map(function(k){ return '<td><input type="number" step="0.01" data-f="' + k + '" value="' + f[k] + '"></td>'; }).join('');
+function rowFor(mode) {
+  var rows = mode === 'micro' ? microRows : fisicoRows;
+  return rows.find(function(r){ return r.mes === activeMonth; }) || null;
+}
+
+function renderMicro(p) {
+  var d = rowFor('micro');
+  if (!d) { document.getElementById('content').innerHTML = '<div class="loading">Sin datos</div>'; return; }
+  var date = d.fecha_analisis ? String(d.fecha_analisis).slice(0,10) : '—';
   document.getElementById('content').innerHTML =
-    '<div class="card full"><div class="doc-hdr"><div><div class="doc-company">' + META.company + '</div><div class="doc-plant">' + META.plant + ' \u00b7 F\u00edsicoqu\u00edmico</div></div><div class="doc-meta">C\u00f3digo: ' + META.code + '<br>Edici\u00f3n: ' + META.edition + '<br>' + META.emission + '</div></div>' +
-    '<div class="doc-title">An\u00e1lisis F\u00edsicoqu\u00edmico \u00b7 ' + p.name + ' \u00b7 ' + mo.n + ' ' + mo.y + '</div>' +
-    '<div class="info-grid"><div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + p.name + '</div></div>' +
+    '<div class="card full"><div class="doc-bar"><div><div class="doc-co">EXPORTADORA ROMEX S.A.</div><div class="doc-pl">Planta Cacao Chincha \u00b7 Microbiolog\u00eda</div></div><div class="doc-meta">C\u00f3digo: I-EVUP-R-309<br>Edici\u00f3n: 19</div></div>' +
+    '<div class="doc-head">An\u00e1lisis Microbiol\u00f3gico \u00b7 ' + p.nombre + ' \u00b7 ' + MONTH_NAMES[activeMonth] + ' 2026</div>' +
+    '<div class="info-grid"><div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + p.nombre + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Fecha an\u00e1lisis</div><div class="info-val" contenteditable="true">' + d.fa + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="pill pill-ok">CONFORME</span></div></div></div></div>' +
-    '<div class="card"><div class="card-head">Resultados</div><div class="table-wrap"><table><thead><tr>' + ths + '</tr></thead><tbody><tr>' + tds + '</tr></tbody></table></div></div>' +
-    '<div class="card"><div class="card-head">Gr\u00e1fico \u00b7 ' + mo.n + '</div><div class="chart-box"><canvas id="chartMain"></canvas></div></div>' +
-    '<div class="card full"><div class="card-head">Tendencia % Humedad</div><div class="chart-box sm"><canvas id="chartTrend"></canvas></div></div>' +
-    '<div class="card full"><div class="card-head">Interpretaci\u00f3n</div><div class="interp" contenteditable="true">Par\u00e1metros f\u00edsicoqu\u00edmicos de <strong>' + p.name + '</strong> (Lote ' + p.lote + ') en <strong>' + mo.n + ' ' + mo.y + '</strong> dentro de especificaci\u00f3n. <strong>CONFORME</strong>.</div>' +
-    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">' + META.analyst + '</div></div></div></div>';
-  setTimeout(function(){ drawFisicoBar(f, fields); drawHumedadTrend(); }, 30);
+    '<div class="info-cell"><div class="info-lbl">Fecha</div><div class="info-val">' + date + '</div></div>' +
+    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="badge">' + (d.estado||'LIBERADO') + '</span></div></div></div></div>' +
+    '<div class="card"><div class="card-title">Resultados (ufc/gr)</div><div class="table-wrap"><table><thead><tr>' +
+    MICRO_KEYS.map(function(k){ return '<th>' + MICRO_LABELS[k] + '</th>'; }).join('') + '</tr></thead><tbody><tr>' +
+    MICRO_KEYS.map(function(k){ return '<td><input type="number" data-f="' + k + '" value="' + (d[k]||0) + '"></td>'; }).join('') +
+    '</tr></tbody></table></div></div>' +
+    '<div class="card"><div class="card-title">Gr\u00e1fico del mes</div><div class="chart-box"><canvas id="cMain"></canvas></div></div>' +
+    '<div class="card full"><div class="card-title">Tendencia anual</div><div class="chart-box sm"><canvas id="cTrend"></canvas></div></div>' +
+    '<div class="card full"><div class="card-title">Interpretaci\u00f3n</div><div class="interp">Resultados de <strong>' + p.nombre + '</strong> en <strong>' + MONTH_NAMES[activeMonth] + ' 2026</strong> dentro de l\u00edmites. <strong>LIBERADO</strong>.</div>' +
+    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">Nereyda Huachua Flores</div></div></div></div>';
+  setTimeout(function(){ drawMicroBar(d); drawMicroTrend(); }, 20);
+}
+
+function fisicoFields(d) {
+  return ['humedad','ph','ceniza','grasa','fineza','acidez'].filter(function(k){ return d[k] != null && d[k] !== ''; });
+}
+
+function renderFisico(p) {
+  var d = rowFor('fisico');
+  if (!d) { document.getElementById('content').innerHTML = '<div class="loading">Sin datos</div>'; return; }
+  var fields = fisicoFields(d);
+  var date = d.fecha_analisis ? String(d.fecha_analisis).slice(0,10) : '—';
+  document.getElementById('content').innerHTML =
+    '<div class="card full"><div class="doc-bar"><div><div class="doc-co">EXPORTADORA ROMEX S.A.</div><div class="doc-pl">Planta Cacao Chincha \u00b7 F\u00edsicoqu\u00edmico</div></div><div class="doc-meta">C\u00f3digo: I-EVUP-R-309<br>Edici\u00f3n: 19</div></div>' +
+    '<div class="doc-head">An\u00e1lisis F\u00edsicoqu\u00edmico \u00b7 ' + p.nombre + ' \u00b7 ' + MONTH_NAMES[activeMonth] + ' 2026</div>' +
+    '<div class="info-grid"><div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + p.nombre + '</div></div>' +
+    '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
+    '<div class="info-cell"><div class="info-lbl">Fecha</div><div class="info-val">' + date + '</div></div>' +
+    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="badge">' + (d.estado||'CONFORME') + '</span></div></div></div></div>' +
+    '<div class="card"><div class="card-title">Resultados</div><div class="table-wrap"><table><thead><tr>' +
+    fields.map(function(k){ return '<th>' + FISICO_LABELS[k] + '</th>'; }).join('') + '</tr></thead><tbody><tr>' +
+    fields.map(function(k){ return '<td><input type="number" step="0.01" data-f="' + k + '" value="' + d[k] + '"></td>'; }).join('') +
+    '</tr></tbody></table></div></div>' +
+    '<div class="card"><div class="card-title">Gr\u00e1fico del mes</div><div class="chart-box"><canvas id="cMain"></canvas></div></div>' +
+    '<div class="card full"><div class="card-title">Tendencia % Humedad</div><div class="chart-box sm"><canvas id="cTrend"></canvas></div></div>' +
+    '<div class="card full"><div class="card-title">Interpretaci\u00f3n</div><div class="interp">Par\u00e1metros de <strong>' + p.nombre + '</strong> en <strong>' + MONTH_NAMES[activeMonth] + ' 2026</strong> dentro de especificaci\u00f3n. <strong>CONFORME</strong>.</div>' +
+    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">Nereyda Huachua Flores</div></div></div></div>';
+  setTimeout(function(){ drawFisicoBar(d, fields); drawHumTrend(); }, 20);
 }
 
 function destroyCharts() {
-  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  if (window._trendChart) { window._trendChart.destroy(); window._trendChart = null; }
+  if (chartMain) { chartMain.destroy(); chartMain = null; }
+  if (chartTrend) { chartTrend.destroy(); chartTrend = null; }
 }
 
-function drawMicroBar(m) {
+function drawMicroBar(d) {
   destroyCharts();
-  var keys = ['rtamv','mohos','coliformes','ecoli','enterob','levaduras','saureus'];
-  var cv = document.getElementById('chartMain'); if (!cv) return;
-  chartInstance = new Chart(cv.getContext('2d'), {
+  var cv = document.getElementById('cMain'); if (!cv) return;
+  chartMain = new Chart(cv, {
     type: 'bar',
-    data: { labels: keys.map(function(k){ return FIELD_LABELS[k]; }), datasets: [{ data: keys.map(function(k){ return m[k]; }), backgroundColor: keys.map(function(k){ return CHART_COLORS[k]; }), borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: false, barPercentage: 0.55 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { color: '#bbb', anchor: 'end', align: 'end', offset: 1, font: { size: 10, weight: '700' }, formatter: function(v){ return v === 0 ? '0' : v.toLocaleString(); } } }, scales: { x: { grid: { display: false }, ticks: { color: '#666', font: { size: 8, weight: '600' } } }, y: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { color: '#555', font: { size: 8 } }, beginAtZero: true } } }
+    data: { labels: MICRO_KEYS.map(function(k){ return MICRO_LABELS[k]; }), datasets: [{ data: MICRO_KEYS.map(function(k){ return d[k]||0; }), backgroundColor: MICRO_KEYS.map(function(k){ return COLORS[k]; }), borderRadius: 4, barPercentage: 0.6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { color: '#424242', anchor: 'end', align: 'end', font: { size: 10, weight: '500' }, formatter: function(v){ return v||'0'; } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#eee' } } } }
   });
 }
 
 function drawMicroTrend() {
-  var cv = document.getElementById('chartTrend'); if (!cv) return;
-  window._trendChart = new Chart(cv.getContext('2d'), {
+  var cv = document.getElementById('cTrend'); if (!cv) return;
+  chartTrend = new Chart(cv, {
     type: 'line',
-    data: { labels: MONTHS.map(function(m){ return m.n; }), datasets: [
-      { label: 'RTAMV', data: DATA[activeProduct].map(function(d){ return d.micro.rtamv; }), borderColor: 'rgba(70,140,255,1)', backgroundColor: 'rgba(70,140,255,.08)', borderWidth: 2, tension: .35, fill: true, pointRadius: 3, yAxisID: 'y' },
-      { label: 'Mohos', data: DATA[activeProduct].map(function(d){ return d.micro.mohos; }), borderColor: 'rgba(255,160,30,1)', backgroundColor: 'rgba(255,160,30,.08)', borderWidth: 2, tension: .35, fill: true, pointRadius: 3, yAxisID: 'y1' }
-    ] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { color: '#777', font: { size: 9 }, usePointStyle: true, boxWidth: 8 } }, datalabels: { display: false } }, scales: { x: { ticks: { color: '#555', font: { size: 7 } }, grid: { color: 'rgba(255,255,255,.02)' } }, y: { position: 'left', ticks: { color: 'rgba(70,140,255,.6)', font: { size: 7 } }, grid: { color: 'rgba(255,255,255,.03)' } }, y1: { position: 'right', ticks: { color: 'rgba(255,160,30,.6)', font: { size: 7 } }, grid: { drawOnChartArea: false }, beginAtZero: true } } }
+    data: {
+      labels: microRows.map(function(r){ return MONTH_NAMES[r.mes]; }),
+      datasets: [
+        { label: 'RTAMV', data: microRows.map(function(r){ return r.rtamv; }), borderColor: COLORS.rtamv, backgroundColor: 'rgba(21,101,192,.08)', fill: true, tension: .3, pointRadius: 3 },
+        { label: 'Mohos', data: microRows.map(function(r){ return r.mohos; }), borderColor: COLORS.mohos, backgroundColor: 'rgba(239,108,0,.08)', fill: true, tension: .3, pointRadius: 3, yAxisID: 'y1' }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }, datalabels: { display: false } }, scales: { y: { position: 'left', grid: { color: '#eee' } }, y1: { position: 'right', grid: { drawOnChartArea: false }, beginAtZero: true } } }
   });
 }
 
-function drawFisicoBar(f, fields) {
+function drawFisicoBar(d, fields) {
   destroyCharts();
-  var cv = document.getElementById('chartMain'); if (!cv) return;
-  chartInstance = new Chart(cv.getContext('2d'), {
+  var cv = document.getElementById('cMain'); if (!cv) return;
+  chartMain = new Chart(cv, {
     type: 'bar',
-    data: { labels: fields.map(function(k){ return FIELD_LABELS[k]; }), datasets: [{ data: fields.map(function(k){ return f[k]; }), backgroundColor: fields.map(function(k){ return CHART_COLORS[k] || 'rgba(200,149,108,.85)'; }), borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: false, barPercentage: 0.5 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { color: '#bbb', anchor: 'end', align: 'end', offset: 1, font: { size: 11, weight: '700' }, formatter: function(v){ return typeof v === 'number' ? v.toFixed(2) : v; } } }, scales: { x: { grid: { display: false }, ticks: { color: '#666', font: { size: 9, weight: '600' } } }, y: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { color: '#555', font: { size: 8 } }, beginAtZero: true } } }
+    data: { labels: fields.map(function(k){ return FISICO_LABELS[k]; }), datasets: [{ data: fields.map(function(k){ return +d[k]; }), backgroundColor: fields.map(function(k){ return COLORS[k]||'#1565c0'; }), borderRadius: 4, barPercentage: 0.5 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { color: '#424242', anchor: 'end', align: 'end', font: { size: 11, weight: '500' }, formatter: function(v){ return (+v).toFixed(2); } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#eee' } } } }
   });
 }
 
-function drawHumedadTrend() {
-  var cv = document.getElementById('chartTrend'); if (!cv) return;
-  window._trendChart = new Chart(cv.getContext('2d'), {
+function drawHumTrend() {
+  var cv = document.getElementById('cTrend'); if (!cv) return;
+  chartTrend = new Chart(cv, {
     type: 'line',
-    data: { labels: MONTHS.map(function(m){ return m.n; }), datasets: [{ label: '% Humedad', data: DATA[activeProduct].map(function(d){ return d.fisico.humedad || 0; }), borderColor: 'rgba(200,149,108,1)', backgroundColor: 'rgba(200,149,108,.1)', borderWidth: 2, tension: .3, fill: true, pointRadius: 4, pointBackgroundColor: '#c8956c' }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { color: '#c8956c', anchor: 'end', align: 'top', offset: 2, font: { size: 9, weight: '700' }, formatter: function(v){ return v.toFixed(2) + '%'; } } }, scales: { x: { ticks: { color: '#555', font: { size: 7 } }, grid: { color: 'rgba(255,255,255,.02)' } }, y: { ticks: { color: '#c8956c', font: { size: 8 }, callback: function(v){ return v.toFixed(1) + '%'; } }, grid: { color: 'rgba(255,255,255,.03)' } } } }
+    data: { labels: fisicoRows.map(function(r){ return MONTH_NAMES[r.mes]; }), datasets: [{ label: '% Humedad', data: fisicoRows.map(function(r){ return +r.humedad || 0; }), borderColor: COLORS.humedad, backgroundColor: 'rgba(21,101,192,.1)', fill: true, tension: .3, pointRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { color: COLORS.humedad, anchor: 'end', align: 'top', font: { size: 10, weight: '500' }, formatter: function(v){ return v.toFixed(2) + '%'; } } }, scales: { y: { grid: { color: '#eee' }, ticks: { callback: function(v){ return v.toFixed(1) + '%'; } } } } }
   });
+}
+
+async function saveCurrent() {
+  var inputs = document.querySelectorAll('td input[data-f]');
+  if (!inputs.length) return;
+  var body = {};
+  inputs.forEach(function(inp){ body[inp.dataset.f] = parseFloat(inp.value) || 0; });
+  try {
+    await api('/productos/' + activeCodigo + '/' + activeMode + '/' + activeMonth + '?anio=2026', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    snack('Guardado en la base de datos');
+  } catch (e) {
+    snack('Modo local: cambios solo en pantalla (sin SQL)');
+  }
+}
+
+function snack(msg) {
+  var el = document.getElementById('snackbar');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, 2500);
 }
 
 document.addEventListener('click', function(e) {
-  var pb = e.target.closest('.prod-btn');
-  if (pb) { activeProduct = pb.dataset.p; activeMonth = 0; render(); return; }
-  var mt = e.target.closest('.month-tab');
-  if (mt) { activeMonth = +mt.dataset.m; render(); return; }
-  var mb = e.target.closest('.mode-btn');
-  if (mb) { activeMode = mb.dataset.mode; render(); return; }
+  var ni = e.target.closest('.nav-item');
+  if (ni) {
+    activeCodigo = ni.dataset.c; activeMonth = 5;
+    loadAndShow().catch(function(){
+      microRows = buildFallbackMicro(activeCodigo);
+      fisicoRows = buildFallbackFisico(activeCodigo);
+      renderTabs();
+      var p = products.find(function(x){ return x.codigo === activeCodigo; });
+      document.getElementById('productTitle').textContent = p.nombre;
+      document.getElementById('loteBadge').textContent = 'Lote ' + p.lote;
+      if (activeMode === 'micro') renderMicro(p); else renderFisico(p);
+    });
+    return;
+  }
+  var tab = e.target.closest('.tab');
+  if (tab) {
+    activeMonth = +tab.dataset.m;
+    var p = products.find(function(x){ return x.codigo === activeCodigo; });
+    renderTabs();
+    if (activeMode === 'micro') renderMicro(p); else renderFisico(p);
+    return;
+  }
+  var seg = e.target.closest('.seg');
+  if (seg) {
+    activeMode = seg.dataset.mode;
+    var p2 = products.find(function(x){ return x.codigo === activeCodigo; });
+    document.querySelectorAll('.seg').forEach(function(b){ b.classList.toggle('active', b.dataset.mode === activeMode); });
+    if (activeMode === 'micro') renderMicro(p2); else renderFisico(p2);
+  }
+  if (e.target.closest('#menuBtn')) document.getElementById('drawer').classList.toggle('open');
 });
 
 document.addEventListener('input', function(e) {
   var f = e.target.dataset.f; if (!f) return;
-  var d = DATA[activeProduct][activeMonth];
-  if (activeMode === 'micro' && d.micro[f] !== undefined) {
-    d.micro[f] = parseFloat(e.target.value) || 0; drawMicroBar(d.micro);
-  } else if (activeMode === 'fisico' && d.fisico[f] !== undefined) {
-    d.fisico[f] = parseFloat(e.target.value) || 0; drawFisicoBar(d.fisico, PRODUCTS[activeProduct].fisicoFields);
-  }
+  var d = rowFor(activeMode); if (!d) return;
+  d[f] = parseFloat(e.target.value) || 0;
+  if (activeMode === 'micro') drawMicroBar(d);
+  else drawFisicoBar(d, fisicoFields(d));
 });
-
-async function saveData() {
-  await dbSet('results', { version: 2, data: DATA });
-  toast('Guardado en base de datos local');
-}
-
-function toast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(t._t);
-  t._t = setTimeout(function(){ t.classList.remove('show'); }, 2000);
-}
 
 init();
