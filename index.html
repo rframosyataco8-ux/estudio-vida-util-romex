@@ -15,22 +15,32 @@ if (!localStorage.getItem('romex_token')) location.replace('login.html');
 </head>
 <body>
   <div id="splash">
-    <div class="splash-glow" aria-hidden="true"></div>
-    <div class="splash-inner">
-      <div class="splash-logo-wrap">
-        <div class="splash-logo-pulse"></div>
-        <div class="splash-logo">
+    <div class="splash-mesh" aria-hidden="true">
+      <span class="mesh m1"></span>
+      <span class="mesh m2"></span>
+      <span class="mesh m3"></span>
+      <span class="mesh m4"></span>
+    </div>
+    <div class="splash-card">
+      <div class="splash-mark">
+        <svg class="splash-arc" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="arc-bg" cx="50" cy="50" r="44"/>
+          <circle class="arc-fg" cx="50" cy="50" r="44"/>
+        </svg>
+        <div class="splash-icon">
           <span class="material-icons-outlined">science</span>
         </div>
       </div>
-      <div class="splash-title">Exportadora RomEx S.A.</div>
-      <div class="splash-sub">Control de Calidad · Planta Chincha</div>
-      <div class="splash-loader">
-        <div class="splash-loader-track">
-          <div class="splash-loader-fill"></div>
-        </div>
-        <div class="splash-loader-text">Cargando sistema…</div>
+      <div class="splash-brand">
+        <span class="splash-brand-line"></span>
+        <h1 class="splash-title">Exportadora RomEx S.A.</h1>
+        <span class="splash-brand-line"></span>
       </div>
+      <p class="splash-sub">Control de Calidad · Planta Chincha</p>
+      <div class="splash-progress">
+        <div class="splash-progress-bar"></div>
+      </div>
+      <p class="splash-status">Inicializando…</p>
     </div>
   </div>
 
