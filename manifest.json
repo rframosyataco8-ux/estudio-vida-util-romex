@@ -1,0 +1,18 @@
+{
+  "name": "Romex Control de Calidad",
+  "short_name": "Romex QC",
+  "description": "Estudio de vida útil y control de calidad · Exportadora Romex S.A.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#b8b8d3",
+  "theme_color": "#1565c0",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "img/Gemini_Generated_Image_8gkfoz8gkfoz8gkf.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
