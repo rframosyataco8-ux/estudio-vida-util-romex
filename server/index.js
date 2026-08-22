@@ -1,6 +1,8 @@
 /**
- * Romex QC API
+ * Romex QC API v1.2
  * Auth: bcrypt + tokens en Sesiones · roles ADMIN / LECTOR
+ * Mejoras: rate-limit login, validación rangos, rowsAffected, CORS configurable,
+ *          limpieza sesiones expiradas, analista = usuario logueado
  */
 'use strict';
 
@@ -12,15 +14,44 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '1mb' }));
-
 const PORT = process.env.PORT || 3000;
 const DB_TYPE = (process.env.DB_TYPE || 'mssql').toLowerCase();
 const TOKEN_HOURS = 12;
 const BCRYPT_ROUNDS = 10;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// CORS: si CORS_ORIGINS está definido, restringe; si no, abre (dev)
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(function (s) { return s.trim(); })
+  .filter(Boolean);
+app.use(cors({
+  origin: corsOrigins.length ? corsOrigins : true,
+  credentials: true
+}));
+app.use(express.json({ limit: '1mb' }));
 
 let pool = null;
+
+/* ── Rate limit simple en memoria (login) ───────────────── */
+var loginAttempts = Object.create(null);
+var LOGIN_WINDOW_MS = 15 * 60 * 1000;
+var LOGIN_MAX = 12;
+
+function checkLoginRate(ip) {
+  var now = Date.now();
+  var entry = loginAttempts[ip];
+  if (!entry || now - entry.start > LOGIN_WINDOW_MS) {
+    loginAttempts[ip] = { start: now, count: 1 };
+    return true;
+  }
+  entry.count += 1;
+  return entry.count <= LOGIN_MAX;
+}
+
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').toString().split(',')[0].trim();
+}
 
 function sha256(text) {
   return crypto.createHash('sha256').update(String(text), 'utf8').digest('hex');
@@ -39,12 +70,11 @@ async function verifyPassword(plain, storedHash) {
   if (isBcryptHash(storedHash)) {
     return bcrypt.compare(plain, storedHash);
   }
-  // Compatibilidad con hashes SHA-256 antiguos
   return sha256(plain) === String(storedHash).toLowerCase();
 }
 
 async function upgradeToBcrypt(userId, plain) {
-  const hash = await bcrypt.hash(plain, BCRYPT_ROUNDS);
+  var hash = await bcrypt.hash(plain, BCRYPT_ROUNDS);
   if (DB_TYPE === 'mssql') {
     await q('UPDATE dbo.Usuarios SET PasswordHash=@p0 WHERE Id=@p1', [hash, userId]);
   } else {
@@ -61,9 +91,67 @@ function slugify(name) {
     .slice(0, 40) || ('prod_' + Date.now());
 }
 
+function safeError(e) {
+  if (IS_PROD) return 'Error interno del servidor';
+  return e && e.message ? e.message : 'Error desconocido';
+}
+
+function clampInt(v, min, max, fallback) {
+  var n = parseInt(v, 10);
+  if (!Number.isFinite(n)) return fallback;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+
+function toNumOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  var n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function validateMicroBody(b) {
+  var out = {};
+  var keys = ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var n = parseInt(b[k], 10);
+    if (!Number.isFinite(n) || n < 0 || n > 10000000) {
+      return { error: 'Valor inválido en ' + k + ' (0–10000000)' };
+    }
+    out[k] = n;
+  }
+  return { data: out };
+}
+
+function validateFisicoBody(b) {
+  var fields = {
+    humedad: [0, 100],
+    ph: [0, 14],
+    ceniza: [0, 100],
+    grasa: [0, 100],
+    fineza: [0, 100],
+    acidez: [0, 100]
+  };
+  var out = {};
+  for (var k in fields) {
+    if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
+    var v = toNumOrNull(b[k]);
+    if (v === null) {
+      out[k] = null;
+      continue;
+    }
+    if (v < fields[k][0] || v > fields[k][1]) {
+      return { error: k + ' fuera de rango (' + fields[k][0] + '–' + fields[k][1] + ')' };
+    }
+    out[k] = Math.round(v * 100) / 100;
+  }
+  return { data: out };
+}
+
 async function initDb() {
   if (DB_TYPE === 'mssql') {
-    const sql = require('mssql');
+    var sql = require('mssql');
     pool = await sql.connect({
       server: process.env.MSSQL_SERVER || 'localhost',
       database: process.env.MSSQL_DATABASE || 'RomexQC',
@@ -76,10 +164,10 @@ async function initDb() {
     });
     console.log('SQL Server OK');
   } else {
-    const { Pool } = require('pg');
+    var Pool = require('pg').Pool;
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: IS_PROD ? { rejectUnauthorized: false } : false
     });
     await pool.query('SELECT 1');
     console.log('PostgreSQL OK');
@@ -89,20 +177,33 @@ async function initDb() {
 async function q(text, params) {
   params = params || [];
   if (DB_TYPE === 'mssql') {
-    const req = pool.request();
+    var req = pool.request();
     params.forEach(function (v, i) { req.input('p' + i, v); });
-    let i = 0;
-    const mssqlText = text.replace(/\$(\d+)/g, function () { return '@p' + (i++); });
-    const r = await req.query(mssqlText);
-    return { rows: r.recordset || [] };
+    var i = 0;
+    var mssqlText = text.replace(/\$(\d+)/g, function () { return '@p' + (i++); });
+    var r = await req.query(mssqlText);
+    return { rows: r.recordset || [], rowsAffected: (r.rowsAffected && r.rowsAffected[0]) || 0 };
   }
-  return pool.query(text, params);
+  var pr = await pool.query(text, params);
+  return { rows: pr.rows || [], rowsAffected: pr.rowCount || 0 };
+}
+
+async function cleanExpiredSessions() {
+  try {
+    if (DB_TYPE === 'mssql') {
+      await q('DELETE FROM dbo.Sesiones WHERE ExpiraEn < SYSUTCDATETIME()');
+    } else {
+      await q('DELETE FROM sesiones WHERE expira_en < NOW()');
+    }
+  } catch (e) {
+    console.warn('cleanExpiredSessions:', e.message);
+  }
 }
 
 async function resolveSession(token) {
   if (!token || token.length < 16) return null;
   if (DB_TYPE === 'mssql') {
-    const r = await q(
+    var r = await q(
       'SELECT u.Id as id, u.Usuario as usuario, u.Nombre as nombre, u.Rol as rol ' +
       'FROM dbo.Sesiones s JOIN dbo.Usuarios u ON u.Id = s.UsuarioId ' +
       'WHERE s.Token = @p0 AND s.ExpiraEn > SYSUTCDATETIME() AND u.Activo = 1',
@@ -110,42 +211,47 @@ async function resolveSession(token) {
     );
     return r.rows[0] || null;
   }
-  const r = await q(
+  var r2 = await q(
     'SELECT u.id, u.usuario, u.nombre, u.rol FROM sesiones s ' +
     'JOIN usuarios u ON u.id = s.usuario_id ' +
     'WHERE s.token = $1 AND s.expira_en > NOW() AND u.activo = true',
     [token]
   );
-  return r.rows[0] || null;
+  return r2.rows[0] || null;
 }
 
 function authRequired(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : (req.headers['x-romex-token'] || '');
+  var header = req.headers.authorization || '';
+  var token = header.startsWith('Bearer ') ? header.slice(7).trim() : (req.headers['x-romex-token'] || '');
   resolveSession(token).then(function (user) {
     if (!user) return res.status(401).json({ error: 'Sesión inválida o expirada' });
     req.user = user;
     next();
   }).catch(function (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   });
 }
 
 function adminRequired(req, res, next) {
-  if (!req.user || req.user.rol !== 'ADMIN') {
+  if (!req.user || String(req.user.rol).toUpperCase() !== 'ADMIN') {
     return res.status(403).json({ error: 'Se requiere rol ADMIN' });
   }
   next();
 }
 
 app.get('/api/health', function (_req, res) {
-  res.json({ ok: true, db: DB_TYPE });
+  res.json({ ok: true, db: DB_TYPE, version: '1.2.0' });
 });
 
 app.post('/api/login', async function (req, res) {
   try {
-    const user = String(req.body.user || '').trim().toLowerCase();
-    const pass = String(req.body.pass || '');
+    var ip = clientIp(req);
+    if (!checkLoginRate(ip)) {
+      return res.status(429).json({ error: 'Demasiados intentos. Espera 15 minutos.' });
+    }
+
+    var user = String(req.body.user || '').trim().toLowerCase();
+    var pass = String(req.body.pass || '');
     if (!user || !pass) {
       return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
     }
@@ -153,38 +259,39 @@ app.post('/api/login', async function (req, res) {
       return res.status(400).json({ error: 'Datos de acceso inválidos' });
     }
 
-    let row;
+    await cleanExpiredSessions();
+
+    var row;
     if (DB_TYPE === 'mssql') {
-      const r = await q(
+      var r = await q(
         'SELECT Id as id, Usuario as usuario, Nombre as nombre, Rol as rol, PasswordHash as password_hash ' +
         'FROM dbo.Usuarios WHERE LOWER(Usuario)=@p0 AND Activo=1',
         [user]
       );
       row = r.rows[0];
     } else {
-      const r = await q(
+      var r2 = await q(
         'SELECT id, usuario, nombre, rol, password_hash FROM usuarios WHERE LOWER(usuario)=$1 AND activo=true',
         [user]
       );
-      row = r.rows[0];
+      row = r2.rows[0];
     }
 
     if (!row) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
-    const ok = await verifyPassword(pass, row.password_hash);
+    var ok = await verifyPassword(pass, row.password_hash);
     if (!ok) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
-    // Migrar SHA-256 → bcrypt en el primer login exitoso
     if (!isBcryptHash(row.password_hash)) {
       try { await upgradeToBcrypt(row.id, pass); } catch (e) { console.warn('upgrade bcrypt:', e.message); }
     }
 
-    const token = newToken();
-    const expira = new Date(Date.now() + TOKEN_HOURS * 3600 * 1000);
+    var token = newToken();
+    var expira = new Date(Date.now() + TOKEN_HOURS * 3600 * 1000);
 
     if (DB_TYPE === 'mssql') {
       await q('INSERT INTO dbo.Sesiones (UsuarioId, Token, ExpiraEn) VALUES (@p0, @p1, @p2)', [row.id, token, expira]);
@@ -200,14 +307,14 @@ app.post('/api/login', async function (req, res) {
       rol: row.rol
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.post('/api/logout', authRequired, async function (req, res) {
   try {
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    var header = req.headers.authorization || '';
+    var token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
     if (DB_TYPE === 'mssql') {
       await q('DELETE FROM dbo.Sesiones WHERE Token=@p0', [token]);
     } else {
@@ -215,7 +322,7 @@ app.post('/api/logout', authRequired, async function (req, res) {
     }
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
@@ -225,20 +332,20 @@ app.get('/api/me', authRequired, function (req, res) {
 
 app.get('/api/productos', authRequired, async function (_req, res) {
   try {
-    const r = await q(DB_TYPE === 'mssql'
+    var r = await q(DB_TYPE === 'mssql'
       ? 'SELECT Id as id, Codigo as codigo, Nombre as nombre, Lote as lote FROM dbo.Productos WHERE Activo=1 ORDER BY Id'
       : 'SELECT id, codigo, nombre, lote FROM productos WHERE activo=true ORDER BY id');
     res.json(r.rows);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.post('/api/productos', authRequired, adminRequired, async function (req, res) {
   try {
-    const nombre = String(req.body.nombre || '').trim();
-    const lote = String(req.body.lote || '').trim();
-    let codigo = String(req.body.codigo || '').trim().toLowerCase();
+    var nombre = String(req.body.nombre || '').trim();
+    var lote = String(req.body.lote || '').trim();
+    var codigo = String(req.body.codigo || '').trim().toLowerCase();
     if (!nombre || nombre.length < 2) return res.status(400).json({ error: 'Nombre inválido (mín. 2 caracteres)' });
     if (!lote || lote.length < 2) return res.status(400).json({ error: 'Lote inválido (mín. 2 caracteres)' });
     if (nombre.length > 120) return res.status(400).json({ error: 'Nombre demasiado largo' });
@@ -247,139 +354,190 @@ app.post('/api/productos', authRequired, adminRequired, async function (req, res
     if (!/^[a-z0-9_]+$/.test(codigo)) return res.status(400).json({ error: 'Código solo puede tener letras, números y _' });
 
     if (DB_TYPE === 'mssql') {
-      const exists = await q('SELECT Id FROM dbo.Productos WHERE Codigo=@p0', [codigo]);
+      var exists = await q('SELECT Id FROM dbo.Productos WHERE Codigo=@p0', [codigo]);
       if (exists.rows.length) return res.status(409).json({ error: 'Ya existe un producto con ese código' });
       await q('INSERT INTO dbo.Productos (Codigo, Nombre, Lote) VALUES (@p0, @p1, @p2)', [codigo, nombre, lote]);
-      const r = await q('SELECT Id as id, Codigo as codigo, Nombre as nombre, Lote as lote FROM dbo.Productos WHERE Codigo=@p0', [codigo]);
+      var r = await q('SELECT Id as id, Codigo as codigo, Nombre as nombre, Lote as lote FROM dbo.Productos WHERE Codigo=@p0', [codigo]);
       return res.status(201).json(r.rows[0]);
     }
 
-    const exists = await q('SELECT id FROM productos WHERE codigo=$1', [codigo]);
-    if (exists.rows.length) return res.status(409).json({ error: 'Ya existe un producto con ese código' });
-    const r = await q('INSERT INTO productos (codigo, nombre, lote) VALUES ($1,$2,$3) RETURNING id, codigo, nombre, lote', [codigo, nombre, lote]);
-    res.status(201).json(r.rows[0]);
+    var exists2 = await q('SELECT id FROM productos WHERE codigo=$1', [codigo]);
+    if (exists2.rows.length) return res.status(409).json({ error: 'Ya existe un producto con ese código' });
+    var r2 = await q('INSERT INTO productos (codigo, nombre, lote) VALUES ($1,$2,$3) RETURNING id, codigo, nombre, lote', [codigo, nombre, lote]);
+    res.status(201).json(r2.rows[0]);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
+  }
+});
+
+/* Soft-delete producto (ADMIN) */
+app.delete('/api/productos/:codigo', authRequired, adminRequired, async function (req, res) {
+  try {
+    var codigo = req.params.codigo;
+    var r;
+    if (DB_TYPE === 'mssql') {
+      r = await q('UPDATE dbo.Productos SET Activo=0 WHERE Codigo=@p0 AND Activo=1', [codigo]);
+    } else {
+      r = await q('UPDATE productos SET activo=false WHERE codigo=$1 AND activo=true', [codigo]);
+    }
+    if (!r.rowsAffected) return res.status(404).json({ error: 'Producto no encontrado o ya inactivo' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.get('/api/productos/:codigo/micro', authRequired, async function (req, res) {
   try {
-    const anio = parseInt(req.query.anio || '2026', 10);
-    const r = await q(DB_TYPE === 'mssql'
+    var anio = clampInt(req.query.anio, 2020, 2099, 2026);
+    var r = await q(DB_TYPE === 'mssql'
       ? 'SELECT m.Anio as anio, m.Mes as mes, m.FechaAnalisis as fecha_analisis, m.RTAMV as rtamv, m.Mohos as mohos, m.Coliformes as coliformes, m.EColi as ecoli, m.Enterobacterias as enterobacterias, m.Levaduras as levaduras, m.SAureus as saureus, m.Estado as estado, m.Analista as analista, m.LiberadoPor as liberado_por FROM dbo.ResultadosMicro m JOIN dbo.Productos p ON p.Id=m.ProductoId WHERE p.Codigo=@p0 AND m.Anio=@p1 ORDER BY m.Mes'
       : 'SELECT m.anio, m.mes, m.fecha_analisis, m.rtamv, m.mohos, m.coliformes, m.ecoli, m.enterobacterias, m.levaduras, m.saureus, m.estado, m.analista, m.liberado_por FROM resultados_micro m JOIN productos p ON p.id=m.producto_id WHERE p.codigo=$1 AND m.anio=$2 ORDER BY m.mes',
       [req.params.codigo, anio]);
     res.json(r.rows);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.get('/api/productos/:codigo/fisico', authRequired, async function (req, res) {
   try {
-    const anio = parseInt(req.query.anio || '2026', 10);
-    const r = await q(DB_TYPE === 'mssql'
+    var anio = clampInt(req.query.anio, 2020, 2099, 2026);
+    var r = await q(DB_TYPE === 'mssql'
       ? 'SELECT m.Anio as anio, m.Mes as mes, m.FechaAnalisis as fecha_analisis, m.Humedad as humedad, m.PH as ph, m.Ceniza as ceniza, m.Grasa as grasa, m.Fineza as fineza, m.Acidez as acidez, m.Estado as estado, m.Analista as analista FROM dbo.ResultadosFisico m JOIN dbo.Productos p ON p.Id=m.ProductoId WHERE p.Codigo=@p0 AND m.Anio=@p1 ORDER BY m.Mes'
       : 'SELECT m.anio, m.mes, m.fecha_analisis, m.humedad, m.ph, m.ceniza, m.grasa, m.fineza, m.acidez, m.estado, m.analista FROM resultados_fisico m JOIN productos p ON p.id=m.producto_id WHERE p.codigo=$1 AND m.anio=$2 ORDER BY m.mes',
       [req.params.codigo, anio]);
     res.json(r.rows);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.put('/api/productos/:codigo/micro/:mes', authRequired, adminRequired, async function (req, res) {
   try {
-    const b = req.body;
-    const anio = parseInt(req.query.anio || '2026', 10);
-    const mes = +req.params.mes;
+    var anio = clampInt(req.query.anio, 2020, 2099, 2026);
+    var mes = parseInt(req.params.mes, 10);
+    if (!mes || mes < 1 || mes > 12) return res.status(400).json({ error: 'Mes inválido' });
+
+    var v = validateMicroBody(req.body || {});
+    if (v.error) return res.status(400).json({ error: v.error });
+    var b = v.data;
+
+    var r;
     if (DB_TYPE === 'mssql') {
-      await q(
+      r = await q(
         'UPDATE m SET RTAMV=@p0, Mohos=@p1, Coliformes=@p2, EColi=@p3, Enterobacterias=@p4, Levaduras=@p5, SAureus=@p6, ActualizadoEn=SYSUTCDATETIME() ' +
         'FROM dbo.ResultadosMicro m JOIN dbo.Productos p ON p.Id=m.ProductoId WHERE p.Codigo=@p7 AND m.Anio=@p8 AND m.Mes=@p9',
-        [b.rtamv || 0, b.mohos || 0, b.coliformes || 0, b.ecoli || 0, b.enterobacterias || 0, b.levaduras || 0, b.saureus || 0, req.params.codigo, anio, mes]
+        [b.rtamv, b.mohos, b.coliformes, b.ecoli, b.enterobacterias, b.levaduras, b.saureus, req.params.codigo, anio, mes]
       );
     } else {
-      await q(
+      r = await q(
         'UPDATE resultados_micro m SET rtamv=$1, mohos=$2, coliformes=$3, ecoli=$4, enterobacterias=$5, levaduras=$6, saureus=$7, actualizado_en=NOW() ' +
         'FROM productos p WHERE p.id=m.producto_id AND p.codigo=$8 AND m.anio=$9 AND m.mes=$10',
-        [b.rtamv || 0, b.mohos || 0, b.coliformes || 0, b.ecoli || 0, b.enterobacterias || 0, b.levaduras || 0, b.saureus || 0, req.params.codigo, anio, mes]
+        [b.rtamv, b.mohos, b.coliformes, b.ecoli, b.enterobacterias, b.levaduras, b.saureus, req.params.codigo, anio, mes]
       );
     }
+    if (!r.rowsAffected) return res.status(404).json({ error: 'No hay registro micro para ese producto/mes/año' });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.put('/api/productos/:codigo/fisico/:mes', authRequired, adminRequired, async function (req, res) {
   try {
-    const b = req.body;
-    const anio = parseInt(req.query.anio || '2026', 10);
-    const mes = +req.params.mes;
+    var anio = clampInt(req.query.anio, 2020, 2099, 2026);
+    var mes = parseInt(req.params.mes, 10);
+    if (!mes || mes < 1 || mes > 12) return res.status(400).json({ error: 'Mes inválido' });
+
+    var v = validateFisicoBody(req.body || {});
+    if (v.error) return res.status(400).json({ error: v.error });
+    var b = v.data;
+
+    var r;
     if (DB_TYPE === 'mssql') {
-      await q(
+      r = await q(
         'UPDATE m SET Humedad=@p0, PH=@p1, Ceniza=@p2, Grasa=@p3, Fineza=@p4, Acidez=@p5, ActualizadoEn=SYSUTCDATETIME() ' +
         'FROM dbo.ResultadosFisico m JOIN dbo.Productos p ON p.Id=m.ProductoId WHERE p.Codigo=@p6 AND m.Anio=@p7 AND m.Mes=@p8',
         [b.humedad, b.ph, b.ceniza, b.grasa, b.fineza, b.acidez, req.params.codigo, anio, mes]
       );
     } else {
-      await q(
+      r = await q(
         'UPDATE resultados_fisico m SET humedad=$1, ph=$2, ceniza=$3, grasa=$4, fineza=$5, acidez=$6, actualizado_en=NOW() ' +
         'FROM productos p WHERE p.id=m.producto_id AND p.codigo=$7 AND m.anio=$8 AND m.mes=$9',
         [b.humedad, b.ph, b.ceniza, b.grasa, b.fineza, b.acidez, req.params.codigo, anio, mes]
       );
     }
+    if (!r.rowsAffected) return res.status(404).json({ error: 'No hay registro físico para ese producto/mes/año' });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
 app.post('/api/productos/:codigo/mes', authRequired, adminRequired, async function (req, res) {
   try {
-    const codigo = req.params.codigo;
-    const anio = parseInt(req.body.anio || '2026', 10);
-    const mes = parseInt(req.body.mes, 10);
-    const fecha = req.body.fecha || (anio + '-' + String(mes).padStart(2, '0') + '-15');
-    const micro = req.body.micro || {};
-    const fisico = req.body.fisico || {};
+    var codigo = req.params.codigo;
+    var anio = clampInt(req.body.anio, 2020, 2099, 2026);
+    var mes = parseInt(req.body.mes, 10);
+    var fecha = req.body.fecha || (anio + '-' + String(mes).padStart(2, '0') + '-15');
+    var microIn = req.body.micro || {};
+    var fisicoIn = req.body.fisico || {};
+    var analista = (req.user && (req.user.nombre || req.user.usuario)) || 'Sistema';
 
-    if (!Number.isFinite(anio) || anio < 2020 || anio > 2099) {
-      return res.status(400).json({ error: 'Año inválido' });
-    }
     if (!mes || mes < 1 || mes > 12) return res.status(400).json({ error: 'Mes inválido (1-12)' });
 
-    if (DB_TYPE === 'mssql') {
-      const prod = await q('SELECT Id as id FROM dbo.Productos WHERE Codigo=@p0 AND Activo=1', [codigo]);
-      if (!prod.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
-      const pid = prod.rows[0].id;
+    var vm = validateMicroBody({
+      rtamv: microIn.rtamv || 0,
+      mohos: microIn.mohos || 0,
+      coliformes: microIn.coliformes || 0,
+      ecoli: microIn.ecoli || 0,
+      enterobacterias: microIn.enterobacterias || 0,
+      levaduras: microIn.levaduras || 0,
+      saureus: microIn.saureus || 0
+    });
+    if (vm.error) return res.status(400).json({ error: vm.error });
+    var micro = vm.data;
 
-      const existsM = await q('SELECT Id FROM dbo.ResultadosMicro WHERE ProductoId=@p0 AND Anio=@p1 AND Mes=@p2', [pid, anio, mes]);
+    var vf = validateFisicoBody(fisicoIn);
+    if (vf.error) return res.status(400).json({ error: vf.error });
+    var fisico = vf.data;
+
+    if (DB_TYPE === 'mssql') {
+      var prod = await q('SELECT Id as id FROM dbo.Productos WHERE Codigo=@p0 AND Activo=1', [codigo]);
+      if (!prod.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+      var pid = prod.rows[0].id;
+
+      var existsM = await q('SELECT Id FROM dbo.ResultadosMicro WHERE ProductoId=@p0 AND Anio=@p1 AND Mes=@p2', [pid, anio, mes]);
       if (existsM.rows.length) return res.status(409).json({ error: 'Ya existe ese mes para este producto' });
 
       await q(
         'INSERT INTO dbo.ResultadosMicro (ProductoId,Anio,Mes,FechaAnalisis,RTAMV,Mohos,Coliformes,EColi,Enterobacterias,Levaduras,SAureus,Analista,LiberadoPor) ' +
-        'VALUES (@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,@p10,N\'ZORKA\',N\'NEREYDA\')',
-        [pid, anio, mes, fecha, micro.rtamv || 0, micro.mohos || 0, micro.coliformes || 0, micro.ecoli || 0, micro.enterobacterias || 0, micro.levaduras || 0, micro.saureus || 0]
+        'VALUES (@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,@p10,@p11,@p12)',
+        [pid, anio, mes, fecha, micro.rtamv, micro.mohos, micro.coliformes, micro.ecoli, micro.enterobacterias, micro.levaduras, micro.saureus, analista, analista]
       );
       await q(
         'INSERT INTO dbo.ResultadosFisico (ProductoId,Anio,Mes,FechaAnalisis,Humedad,PH,Ceniza,Grasa,Fineza,Acidez,Analista) ' +
-        'VALUES (@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,N\'NEREYDA\')',
-        [pid, anio, mes, fecha, fisico.humedad != null ? fisico.humedad : null, fisico.ph != null ? fisico.ph : null, fisico.ceniza != null ? fisico.ceniza : null, fisico.grasa != null ? fisico.grasa : null, fisico.fineza != null ? fisico.fineza : null, fisico.acidez != null ? fisico.acidez : null]
+        'VALUES (@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,@p10)',
+        [pid, anio, mes, fecha, fisico.humedad, fisico.ph, fisico.ceniza, fisico.grasa, fisico.fineza, fisico.acidez, analista]
       );
     } else {
-      const prod2 = await q('SELECT id FROM productos WHERE codigo=$1 AND activo=true', [codigo]);
+      var prod2 = await q('SELECT id FROM productos WHERE codigo=$1 AND activo=true', [codigo]);
       if (!prod2.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
-      const pid2 = prod2.rows[0].id;
-      await q('INSERT INTO resultados_micro (producto_id,anio,mes,fecha_analisis,rtamv,mohos,coliformes,ecoli,enterobacterias,levaduras,saureus) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)', [pid2, anio, mes, fecha, micro.rtamv || 0, micro.mohos || 0, micro.coliformes || 0, micro.ecoli || 0, micro.enterobacterias || 0, micro.levaduras || 0, micro.saureus || 0]);
-      await q('INSERT INTO resultados_fisico (producto_id,anio,mes,fecha_analisis,humedad,ph,ceniza,grasa,fineza,acidez) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)', [pid2, anio, mes, fecha, fisico.humedad, fisico.ph, fisico.ceniza, fisico.grasa, fisico.fineza, fisico.acidez]);
+      var pid2 = prod2.rows[0].id;
+      await q(
+        'INSERT INTO resultados_micro (producto_id,anio,mes,fecha_analisis,rtamv,mohos,coliformes,ecoli,enterobacterias,levaduras,saureus,analista) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+        [pid2, anio, mes, fecha, micro.rtamv, micro.mohos, micro.coliformes, micro.ecoli, micro.enterobacterias, micro.levaduras, micro.saureus, analista]
+      );
+      await q(
+        'INSERT INTO resultados_fisico (producto_id,anio,mes,fecha_analisis,humedad,ph,ceniza,grasa,fineza,acidez,analista) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+        [pid2, anio, mes, fecha, fisico.humedad, fisico.ph, fisico.ceniza, fisico.grasa, fisico.fineza, fisico.acidez, analista]
+      );
     }
 
     res.status(201).json({ ok: true, mes: mes, anio: anio });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: safeError(e) });
   }
 });
 
@@ -391,7 +549,7 @@ app.get('*', function (req, res) {
 
 initDb().then(function () {
   app.listen(PORT, function () {
-    console.log('Romex QC API port ' + PORT + ' · DB ' + DB_TYPE);
+    console.log('Romex QC API v1.2 · port ' + PORT + ' · DB ' + DB_TYPE);
   });
 }).catch(function (err) {
   console.error(err);
