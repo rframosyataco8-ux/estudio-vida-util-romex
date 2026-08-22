@@ -3,18 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1565c0">
 <title>Control de Calidad · Romex</title>
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/dark.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
   var t = localStorage.getItem('romex_token') || sessionStorage.getItem('romex_token');
-  if (!t) {
-    location.replace('login.html');
-  }
+  if (!t) location.replace('login.html');
+  var th = localStorage.getItem('romex_theme');
+  if (th === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 })();
 </script>
 <style>
@@ -23,10 +26,9 @@
   .year-select {
     font-family: inherit; font-size: 13px; font-weight: 500;
     padding: 6px 10px; border: 1.5px solid var(--md-outline, #d0d7de);
-    border-radius: 10px; background: #fff; color: var(--md-text, #1a2332);
+    border-radius: 10px; background: var(--md-surface-1, #fff); color: var(--md-text, #1a2332);
     outline: none; cursor: pointer;
   }
-  .year-select:focus { border-color: var(--md-primary, #1565c0); }
   .empty-state {
     grid-column: 1 / -1; text-align: center; padding: 48px 24px;
     color: var(--md-text-sec, #5a6a7a);
@@ -68,7 +70,7 @@
       <span class="material-icons-outlined">science</span>
       <div>
         <div class="drawer-title">Romex QC</div>
-        <div class="drawer-sub">Control de Calidad</div>
+        <div class="drawer-sub">Control de Calidad · v1.3</div>
       </div>
     </div>
     <div class="drawer-body">
@@ -83,6 +85,9 @@
       <div class="drawer-actions admin-only" id="drawerActions" hidden>
         <button type="button" class="drawer-action-btn" id="addProductBtn">
           <span class="material-icons-outlined">add_box</span> Nuevo producto
+        </button>
+        <button type="button" class="drawer-action-btn" id="auditBtn" style="margin-top:6px">
+          <span class="material-icons-outlined">history</span> Auditoría
         </button>
       </div>
     </div>
@@ -115,10 +120,19 @@
         <button type="button" class="seg active" data-mode="micro">Microbiología</button>
         <button type="button" class="seg" data-mode="fisico">Físicoquímico</button>
       </div>
+      <button type="button" class="icon-btn" id="exportBtn" title="Exportar CSV (Excel)">
+        <span class="material-icons-outlined">download</span>
+      </button>
+      <button type="button" class="icon-btn" id="compareBtn" title="Comparar productos">
+        <span class="material-icons-outlined">compare_arrows</span>
+      </button>
       <button type="button" class="icon-btn admin-only" id="addMonthBtn" title="Agregar mes" hidden>
         <span class="material-icons-outlined">add_circle_outline</span>
       </button>
-      <button type="button" class="icon-btn" onclick="window.print()" title="Imprimir">
+      <button type="button" class="icon-btn" id="themeBtn" title="Tema claro/oscuro">
+        <span class="material-icons-outlined">dark_mode</span>
+      </button>
+      <button type="button" class="icon-btn" onclick="window.print()" title="Imprimir / PDF">
         <span class="material-icons-outlined">print</span>
       </button>
     </header>
@@ -130,31 +144,22 @@
   </div>
 
   <div class="modal-backdrop" id="modalMes" hidden>
-    <div class="modal" role="dialog" aria-labelledby="modalMesTitle">
+    <div class="modal" role="dialog">
       <div class="modal-head">
-        <h2 id="modalMesTitle">Agregar mes</h2>
+        <h2>Agregar mes</h2>
         <button type="button" class="modal-close" data-close="modalMes">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="form-row">
-          <label>Año</label>
-          <input type="number" id="mesAnio" value="2026" min="2020" max="2099">
-        </div>
-        <div class="form-row">
-          <label>Mes</label>
+        <div class="form-row"><label>Año</label><input type="number" id="mesAnio" value="2026" min="2020" max="2099"></div>
+        <div class="form-row"><label>Mes</label>
           <select id="mesNumero">
-            <option value="1">Enero</option><option value="2">Febrero</option>
-            <option value="3">Marzo</option><option value="4">Abril</option>
-            <option value="5">Mayo</option><option value="6">Junio</option>
-            <option value="7">Julio</option><option value="8">Agosto</option>
-            <option value="9">Septiembre</option><option value="10">Octubre</option>
-            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+            <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+            <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+            <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
           </select>
         </div>
-        <div class="form-row">
-          <label>Fecha análisis</label>
-          <input type="date" id="mesFecha">
-        </div>
+        <div class="form-row"><label>Fecha análisis</label><input type="date" id="mesFecha"></div>
         <h3 class="modal-section">Microbiología (ufc/gr)</h3>
         <div class="form-grid">
           <label>RTAMV <input type="number" id="m_rtamv" value="0" min="0"></label>
@@ -183,24 +188,15 @@
   </div>
 
   <div class="modal-backdrop" id="modalProducto" hidden>
-    <div class="modal modal-sm" role="dialog" aria-labelledby="modalProdTitle">
+    <div class="modal modal-sm" role="dialog">
       <div class="modal-head">
-        <h2 id="modalProdTitle">Nuevo producto</h2>
+        <h2>Nuevo producto</h2>
         <button type="button" class="modal-close" data-close="modalProducto">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="form-row">
-          <label>Nombre del producto</label>
-          <input type="text" id="prodNombre" placeholder="Ej. Torta Natural de Cacao" required>
-        </div>
-        <div class="form-row">
-          <label>Lote</label>
-          <input type="text" id="prodLote" placeholder="Ej. 44260304" required>
-        </div>
-        <div class="form-row">
-          <label>Código (opcional)</label>
-          <input type="text" id="prodCodigo" placeholder="Se genera automático si se deja vacío">
-        </div>
+        <div class="form-row"><label>Nombre del producto</label><input type="text" id="prodNombre" required></div>
+        <div class="form-row"><label>Lote</label><input type="text" id="prodLote" required></div>
+        <div class="form-row"><label>Código (opcional)</label><input type="text" id="prodCodigo"></div>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn-ghost" data-close="modalProducto">Cancelar</button>
@@ -209,12 +205,41 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modalCompare" hidden>
+    <div class="modal" role="dialog">
+      <div class="modal-head">
+        <h2>Comparar productos</h2>
+        <button type="button" class="modal-close" data-close="modalCompare">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row"><label>Producto A</label><select id="cmpA"></select></div>
+        <div class="form-row"><label>Producto B</label><select id="cmpB"></select></div>
+        <div id="cmpResult" style="margin-top:12px;font-size:13px"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-ghost" data-close="modalCompare">Cerrar</button>
+        <button type="button" class="btn-primary" id="runCompareBtn">Comparar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalAudit" hidden>
+    <div class="modal" role="dialog" style="max-width:720px">
+      <div class="modal-head">
+        <h2>Historial de auditoría</h2>
+        <button type="button" class="modal-close" data-close="modalAudit">&times;</button>
+      </div>
+      <div class="modal-body" id="auditList">—</div>
+      <div class="modal-foot">
+        <button type="button" class="btn-ghost" data-close="modalAudit">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="snackbar" id="snackbar"></div>
   <script>
     (function () {
-      var host = location.hostname;
-      var port = location.port;
-      var proto = location.protocol;
+      var host = location.hostname, port = location.port, proto = location.protocol;
       if (proto === 'file:' || port === '5500' || port === '5501' || port === '8080' || port === '5173') {
         window.API_BASE = 'http://localhost:3000';
       } else if ((host === 'localhost' || host === '127.0.0.1') && port && port !== '3000') {
@@ -225,5 +250,6 @@
     })();
   </script>
   <script src="js/app.js"></script>
+  <script src="js/extras.js"></script>
 </body>
 </html>
