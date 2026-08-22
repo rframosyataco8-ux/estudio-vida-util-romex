@@ -1,4 +1,4 @@
-/* Romex QC UI v1.5 — skeletons + content transitions */
+/* Romex QC UI v1.5.1 — skeletons, transiciones, menú productos abierto */
 'use strict';
 (function () {
   function skeletonHtml() {
@@ -25,13 +25,23 @@
   window.romexContentSwitchStart = contentSwitchStart;
   window.romexContentSwitchEnd = contentSwitchEnd;
 
+  function openProductsMenu() {
+    var btn = document.getElementById('productsToggle');
+    var nav = document.getElementById('productNav');
+    if (!btn || !nav) return;
+    nav.classList.add('open');
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+
   var tries = 0;
   function patch() {
     tries++;
     if (typeof loadAndShow !== 'function') {
-      if (tries < 40) setTimeout(patch, 50);
+      if (tries < 50) setTimeout(patch, 40);
       return;
     }
+
     var origLoad = loadAndShow;
     window.loadAndShow = async function () {
       var el = document.getElementById('content');
@@ -39,12 +49,16 @@
       return origLoad.apply(this, arguments);
     };
 
+    openProductsMenu();
+    setTimeout(openProductsMenu, 400);
+    setTimeout(openProductsMenu, 1200);
+
     document.addEventListener('click', function (e) {
       var tab = e.target.closest('.tab');
       var seg = e.target.closest('.seg');
       if ((tab || seg) && typeof sqlReady !== 'undefined' && sqlReady) {
         contentSwitchStart();
-        setTimeout(contentSwitchEnd, 280);
+        setTimeout(contentSwitchEnd, 260);
       }
     }, true);
   }
