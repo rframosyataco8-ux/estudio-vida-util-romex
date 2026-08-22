@@ -1,4 +1,4 @@
-/* Romex QC — gráfico 3D. Animación optimizada. Solo este archivo. */
+/* Romex QC — gráfico 3D. Easing mejorado. Solo este archivo. */
 'use strict';
 
 function romexGetBaseline(codigo) {
@@ -58,8 +58,10 @@ function fmtVal(v) {
   var t = (Math.round(v * 100) / 100).toFixed(2);
   return t.replace(/\.00$/, '').replace(/(\.[1-9])0$/, '$1');
 }
-function easeOutCubic(t) {
-  return 1 - Math.pow(1 - t, 3);
+
+/** Easing: arranque rápido, frenado suave al final */
+function easeOutQuart(t) {
+  return 1 - Math.pow(1 - t, 4);
 }
 
 function shortLabel(lab) {
@@ -77,7 +79,7 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   if (!canvas) return false;
   if (progress == null || progress > 1) progress = 1;
   if (progress < 0) progress = 0;
-  var p = easeOutCubic(progress);
+  var p = easeOutQuart(progress);
 
   var box = canvas.parentElement;
   var W = Math.max(420, (box && box.clientWidth) ? Math.floor(box.clientWidth) : 760);
@@ -266,7 +268,6 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   return true;
 }
 
-/** Animación optimizada: cancela la anterior, ~400ms, menos trabajo por frame */
 function romexAnimate3D(canvas, labels, series, title) {
   if (!canvas) return false;
   if (_romexRaf) {
@@ -275,7 +276,7 @@ function romexAnimate3D(canvas, labels, series, title) {
   }
   var animToken = ++_romexAnimId;
   var t0 = null;
-  var duration = 400;
+  var duration = 420;
 
   function frame(ts) {
     if (animToken !== _romexAnimId) return;
