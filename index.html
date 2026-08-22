@@ -18,9 +18,23 @@
 })();
 </script>
 <style>
-  /* Evita flash del splash antes de saber si hay sesión */
   html.romex-boot #splash { visibility: hidden; }
   html.romex-ready #splash { visibility: visible; }
+  .year-select {
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    padding: 6px 10px; border: 1.5px solid var(--md-outline, #d0d7de);
+    border-radius: 10px; background: #fff; color: var(--md-text, #1a2332);
+    outline: none; cursor: pointer;
+  }
+  .year-select:focus { border-color: var(--md-primary, #1565c0); }
+  .empty-state {
+    grid-column: 1 / -1; text-align: center; padding: 48px 24px;
+    color: var(--md-text-sec, #5a6a7a);
+  }
+  .empty-state .material-icons-outlined { font-size: 48px; opacity: .4; margin-bottom: 12px; }
+  .empty-state strong { display: block; font-size: 15px; color: var(--md-text, #1a2332); margin-bottom: 8px; }
+  .badge.warn { background: #fff3e0; color: #e65100; }
+  .badge.danger { background: #ffebee; color: #c62828; }
 </style>
 <script>document.documentElement.classList.add('romex-boot');</script>
 </head>
@@ -75,7 +89,7 @@
     <div class="drawer-footer">
       <div class="footer-name" id="userName">—</div>
       <div class="footer-role" id="userRoleLabel">—</div>
-      <div class="db-status" id="dbStatus"><span class="dot"></span> SQL Server</div>
+      <div class="db-status" id="dbStatus"><span class="dot"></span> Base de datos</div>
       <button type="button" class="logout-btn" id="logoutBtn">
         <span class="material-icons-outlined" style="font-size:16px">logout</span>
         Cerrar sesión
@@ -90,6 +104,11 @@
       </button>
       <h1 id="productTitle">—</h1>
       <span class="chip" id="loteBadge">—</span>
+      <select class="year-select" id="yearSelect" title="Año">
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+      </select>
       <div class="spacer"></div>
       <span class="save-indicator" id="saveInd"></span>
       <div class="segmented">
@@ -138,13 +157,13 @@
         </div>
         <h3 class="modal-section">Microbiología (ufc/gr)</h3>
         <div class="form-grid">
-          <label>RTAMV <input type="number" id="m_rtamv" value="0"></label>
-          <label>Mohos <input type="number" id="m_mohos" value="0"></label>
-          <label>Coliformes <input type="number" id="m_coliformes" value="0"></label>
-          <label>E.Coli <input type="number" id="m_ecoli" value="0"></label>
-          <label>Enterob. <input type="number" id="m_enterobacterias" value="0"></label>
-          <label>Levaduras <input type="number" id="m_levaduras" value="0"></label>
-          <label>S.Aureus <input type="number" id="m_saureus" value="0"></label>
+          <label>RTAMV <input type="number" id="m_rtamv" value="0" min="0"></label>
+          <label>Mohos <input type="number" id="m_mohos" value="0" min="0"></label>
+          <label>Coliformes <input type="number" id="m_coliformes" value="0" min="0"></label>
+          <label>E.Coli <input type="number" id="m_ecoli" value="0" min="0"></label>
+          <label>Enterob. <input type="number" id="m_enterobacterias" value="0" min="0"></label>
+          <label>Levaduras <input type="number" id="m_levaduras" value="0" min="0"></label>
+          <label>S.Aureus <input type="number" id="m_saureus" value="0" min="0"></label>
         </div>
         <h3 class="modal-section">Físicoquímico</h3>
         <div class="form-grid">
@@ -193,8 +212,12 @@
   <div class="snackbar" id="snackbar"></div>
   <script>
     (function () {
-      var p = window.location.port;
-      if (p === '5500' || p === '5501' || p === '8080' || location.protocol === 'file:') {
+      var host = location.hostname;
+      var port = location.port;
+      var proto = location.protocol;
+      if (proto === 'file:' || port === '5500' || port === '5501' || port === '8080' || port === '5173') {
+        window.API_BASE = 'http://localhost:3000';
+      } else if ((host === 'localhost' || host === '127.0.0.1') && port && port !== '3000') {
         window.API_BASE = 'http://localhost:3000';
       } else {
         window.API_BASE = '';

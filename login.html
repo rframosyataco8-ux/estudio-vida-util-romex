@@ -65,8 +65,21 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
     location.href = 'index.html';
     return;
   }
-  var API = (location.port === '5500' || location.port === '5501' || location.protocol === 'file:')
-    ? 'http://localhost:3000' : '';
+
+  function resolveApiBase() {
+    var host = location.hostname;
+    var port = location.port;
+    var proto = location.protocol;
+    if (proto === 'file:' || port === '5500' || port === '5501' || port === '8080' || port === '5173') {
+      return 'http://localhost:3000';
+    }
+    if (host === 'localhost' || host === '127.0.0.1') {
+      if (port && port !== '3000') return 'http://localhost:3000';
+    }
+    return '';
+  }
+
+  var API = resolveApiBase();
 
   function validateLogin() {
     var u = document.getElementById('user');
@@ -123,14 +136,22 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
           pass: document.getElementById('pass').value
         })
       });
-      var data = await r.json();
+      var data = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(data.error || 'Credenciales inválidas');
-      localStorage.setItem('romex_token', data.token);
-      localStorage.setItem('romex_user', data.nombre || data.user);
-      localStorage.setItem('romex_rol', data.rol || 'LECTOR');
-      if (!document.getElementById('remember').checked) {
-        sessionStorage.setItem('romex_token', data.token);
-      }
+
+      // Limpiar ambos storages y guardar solo donde corresponde
+      localStorage.removeItem('romex_token');
+      localStorage.removeItem('romex_user');
+      localStorage.removeItem('romex_rol');
+      sessionStorage.removeItem('romex_token');
+      sessionStorage.removeItem('romex_user');
+      sessionStorage.removeItem('romex_rol');
+
+      var store = document.getElementById('remember').checked ? localStorage : sessionStorage;
+      store.setItem('romex_token', data.token);
+      store.setItem('romex_user', data.nombre || data.user);
+      store.setItem('romex_rol', data.rol || 'LECTOR');
+
       location.href = 'index.html';
     } catch (ex) {
       err.textContent = ex.message || 'Error de conexión';
