@@ -1,4 +1,4 @@
-/* Solo márgenes / layout del gráfico 3D — no altera el resto de la UI */
+/* Márgenes responsive del gráfico 3D — solo este CSS */
 
 .chart-box {
   position: relative;
@@ -6,7 +6,7 @@
   width: 100%;
   min-height: 480px;
   margin: 8px 0 16px;
-  padding: 12px 8px 20px;
+  padding: 12px 12px 20px;
   background: #fff;
   border-radius: 10px;
   overflow: visible;
@@ -15,7 +15,7 @@
 .chart-box.sm {
   min-height: 220px;
   margin: 4px 0 8px;
-  padding: 8px 4px 12px;
+  padding: 8px 6px 12px;
 }
 
 .chart-box canvas#cMain {
@@ -30,7 +30,6 @@
   height: 200px !important;
 }
 
-/* Tarjeta del gráfico a ancho completo con margen interno coherente */
 .content > .card:has(#cMain),
 .content > .card:has(.chart-box),
 .content > .card.full {
@@ -41,4 +40,38 @@
 .content > .card:has(#cMain) .card-title {
   margin-bottom: 4px;
   padding: 0 4px;
+}
+
+/* Tablet */
+@media (max-width: 960px) {
+  .chart-box {
+    min-height: 400px;
+    margin: 6px 0 12px;
+    padding: 10px 8px 16px;
+  }
+  .chart-box canvas#cMain {
+    height: 380px !important;
+  }
+}
+
+/* Móvil */
+@media (max-width: 600px) {
+  .chart-box {
+    min-height: 340px;
+    margin: 4px 0 10px;
+    padding: 8px 4px 14px;
+    border-radius: 8px;
+  }
+  .chart-box canvas#cMain {
+    height: 320px !important;
+  }
+  .chart-box.sm {
+    min-height: 180px;
+  }
+  .chart-box.sm canvas {
+    height: 160px !important;
+  }
+  .content > .card:has(#cMain) {
+    margin-bottom: 12px;
+  }
 }
