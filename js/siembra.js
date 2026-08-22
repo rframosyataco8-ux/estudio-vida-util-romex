@@ -1,9 +1,7 @@
 /* Romex QC — lógica de siembra / punto de partida v1.5.2
- * - Lote YYMM → mes/año de inicio (ej. 13260318 → 2603 → marzo 2026)
- * - Punto de partida = promedio de parrillas (baselines.json)
- * - Mes inicio: solo siembra en gráfico 3D
- * - Meses siguientes: siembra vs resultado
- * - Tendencia: línea de siembra (constante) + línea de resultados
+ * Lote YYMM → mes inicio | Punto partida = promedio parrillas (baselines.json)
+ * Mes inicio: solo siembra | Meses siguientes: siembra vs resultado
+ * Tendencia: línea siembra (constante) + resultados
  */
 'use strict';
 
@@ -18,15 +16,11 @@
     };
   }
 
-  /** Extrae YYMM del lote (busca patrón 2 dígitos año + 2 dígitos mes 01-12) */
   window.romexParseLoteYYMM = function (lote) {
     var s = String(lote || '');
     var m = s.match(/(\d{2})(0[1-9]|1[0-2])/);
     if (!m) return null;
-    var yy = parseInt(m[1], 10);
-    var mm = parseInt(m[2], 10);
-    var anio = yy >= 20 ? 2000 + yy : 2000 + yy;
-    return { anio: anio, mes: mm };
+    return { anio: 2000 + parseInt(m[1], 10), mes: parseInt(m[2], 10) };
   };
 
   window.romexIsStartMonth = function () {
@@ -35,45 +29,48 @@
       activeYear === bl.anioInicio && activeMonth === bl.mesInicio;
   };
 
-  /** Al elegir producto, ir al mes de inicio del lote */
   window.romexSetMonthFromBaseline = function (codigo) {
     var bl = getBl(codigo);
-    if (bl.anioInicio) {
-      if (typeof activeYear !== 'undefined') activeYear = bl.anioInicio;
+    if (bl.anioInicio && typeof activeYear !== 'undefined') {
+      activeYear = bl.anioInicio;
       var ys = document.getElementById('yearSelect');
       if (ys) ys.value = String(bl.anioInicio);
     }
-    if (bl.mesInicio) {
-      if (typeof activeMonth !== 'undefined') activeMonth = bl.mesInicio;
+    if (bl.mesInicio && typeof activeMonth !== 'undefined') {
+      activeMonth = bl.mesInicio;
     }
   };
 
-  /** Badge / nota de siembra en el content */
   window.romexSiembraNoteHtml = function () {
     var bl = getBl(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
     var mesNom = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[bl.mesInicio])
       ? MONTH_NAMES[bl.mesInicio] : bl.mesInicio;
     var fecha = bl.fechaSiembra || '—';
     var isStart = window.romexIsStartMonth();
+    var avgHint = '';
+    if (bl.micro) {
+      avgHint = ' · RTAMV siembra: ' + (bl.micro.rtamv != null ? bl.micro.rtamv : '—') +
+        ' · Mohos: ' + (bl.micro.mohos != null ? bl.micro.mohos : '—');
+    }
     return '<div class="siembra-note' + (isStart ? ' is-start' : '') + '">' +
       '<span class="material-icons-outlined" style="font-size:16px;vertical-align:middle">science</span> ' +
       '<strong>Punto de partida (siembra)</strong> · ' + mesNom + ' ' + (bl.anioInicio || '') +
       (fecha && fecha !== '—' ? ' · Fecha siembra: ' + fecha : '') +
+      avgHint +
       (isStart
-        ? ' · <em>Este mes muestra solo el promedio de siembra</em>'
+        ? ' · <em>Este mes muestra solo el promedio de siembra (parrillas)</em>'
         : ' · Comparación: siembra vs resultado del mes') +
       '</div>';
   };
 
-  function baselineArray(keys, side) {
-    var bl = getBl(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
-    var src = side === 'fisico' ? (bl.fisico || {}) : (bl.micro || {});
-    return keys.map(function (k) {
-      return src[k] != null ? +src[k] : 0;
-    });
+  function injectNote() {
+    var content = document.getElementById('content');
+    if (!content || content.querySelector('.siembra-note')) return;
+    if (typeof romexSiembraNoteHtml !== 'function') return;
+    if (!content.querySelector('.card')) return;
+    content.insertAdjacentHTML('afterbegin', romexSiembraNoteHtml());
   }
 
-  /** Tendencia micro: siembra (constante) + RTAMV/Mohos mensuales */
   window.romexDrawMicroTrendSiembra = function () {
     var cv = document.getElementById('cTrend');
     if (!cv || typeof Chart === 'undefined') return false;
@@ -91,10 +88,8 @@
     var baseR = bl.micro && bl.micro.rtamv != null ? +bl.micro.rtamv : 0;
     var baseM = bl.micro && bl.micro.mohos != null ? +bl.micro.mohos : 0;
     var n = rows.length;
-    var baseRLine = Array(n).fill(baseR);
-    var baseMLine = Array(n).fill(baseM);
-
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+
     chartTrend = new Chart(cv, {
       type: 'line',
       data: {
@@ -102,7 +97,7 @@
         datasets: [
           {
             label: 'Siembra RTAMV',
-            data: baseRLine,
+            data: Array(n).fill(baseR),
             borderColor: '#90a4ae',
             borderDash: [6, 4],
             pointRadius: 0,
@@ -122,7 +117,7 @@
           },
           {
             label: 'Siembra Mohos',
-            data: baseMLine,
+            data: Array(n).fill(baseM),
             borderColor: '#bcaaa4',
             borderDash: [6, 4],
             pointRadius: 0,
@@ -152,7 +147,7 @@
           datalabels: { display: false },
           title: {
             display: true,
-            text: 'Tendencia · Siembra (línea punteada) vs resultado mensual',
+            text: 'Tendencia · Siembra (punteada) vs resultado mensual',
             font: { size: 12, weight: '500' },
             color: dark ? '#90caf9' : '#1565c0'
           }
@@ -166,7 +161,6 @@
     return true;
   };
 
-  /** Tendencia físico: siembra humedad constante + humedad mes */
   window.romexDrawFisicoTrendSiembra = function () {
     var cv = document.getElementById('cTrend');
     if (!cv || typeof Chart === 'undefined') return false;
@@ -239,14 +233,25 @@
     return true;
   };
 
-  /* Parchear drawMicroTrend / drawHumTrend y cambio de producto */
   var tries = 0;
   function patch() {
     tries++;
-    if (typeof drawMicroTrend !== 'function' && tries < 80) {
-      setTimeout(patch, 50);
+    if (typeof loadAndShow !== 'function') {
+      if (tries < 80) setTimeout(patch, 50);
       return;
     }
+
+    var origLoad = loadAndShow;
+    window.loadAndShow = async function () {
+      if (typeof activeCodigo !== 'undefined' && activeCodigo) {
+        window.romexSetMonthFromBaseline(activeCodigo);
+      }
+      var res = await origLoad.apply(this, arguments);
+      setTimeout(injectNote, 30);
+      setTimeout(injectNote, 200);
+      return res;
+    };
+
     if (typeof drawMicroTrend === 'function') {
       window.drawMicroTrend = function () {
         if (window.romexDrawMicroTrendSiembra()) return;
@@ -258,17 +263,19 @@
       };
     }
 
-    /* Interceptar click de producto para fijar mes inicio */
     document.addEventListener('click', function (e) {
-      var ni = e.target.closest('.nav-item');
-      if (!ni || !ni.dataset.c) return;
-      var cod = ni.dataset.c;
-      setTimeout(function () {
-        if (typeof activeCodigo !== 'undefined' && activeCodigo === cod) {
-          window.romexSetMonthFromBaseline(cod);
-        }
-      }, 0);
+      if (e.target.closest('.tab') || e.target.closest('.seg') || e.target.closest('.nav-item')) {
+        setTimeout(injectNote, 120);
+        setTimeout(injectNote, 350);
+      }
     }, true);
+
+    var content = document.getElementById('content');
+    if (content && window.MutationObserver) {
+      new MutationObserver(function () {
+        setTimeout(injectNote, 40);
+      }).observe(content, { childList: true });
+    }
   }
   patch();
 })();
