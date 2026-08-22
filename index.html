@@ -12,8 +12,6 @@
 <link rel="stylesheet" href="css/dark.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.8/highcharts.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.8/highcharts-3d.js"></script>
 <script>
 (function () {
   var t = localStorage.getItem('romex_token') || sessionStorage.getItem('romex_token');
@@ -40,7 +38,7 @@
   .badge.warn { background: #fff3e0; color: #e65100; }
   .badge.danger { background: #ffebee; color: #c62828; }
   .chart-box { position: relative; min-height: 280px; }
-  #cMain-3d { min-height: 300px; }
+  #cMain { width: 100% !important; max-width: 100%; }
 </style>
 <script>document.documentElement.classList.add('romex-boot');</script>
 </head>
@@ -74,7 +72,7 @@
       <span class="material-icons-outlined">science</span>
       <div>
         <div class="drawer-title">Romex QC</div>
-        <div class="drawer-sub">Vida útil · v1.4.2</div>
+        <div class="drawer-sub">Vida útil · v1.4.3</div>
       </div>
     </div>
     <div class="drawer-body">
@@ -256,6 +254,5 @@
   <script src="js/chart3d.js"></script>
   <script src="js/app.js"></script>
   <script src="js/extras.js"></script>
-  <script src="js/vida-util.js"></script>
 </body>
 </html>
