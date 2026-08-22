@@ -1,16 +1,14 @@
-/* Limpia SW y cachés viejos UNA vez por sesión — evita UI v1.3 fantasma */
+/* Limpia SW y Cache Storage al entrar — evita UI fantasma v1.3 */
 (function () {
-  var KEY = 'romex_cache_cleared_v151';
-  if (sessionStorage.getItem(KEY)) return;
+  var KEY = 'romex_purged_v151';
+  try {
+    if (sessionStorage.getItem(KEY) === '1') return;
+  } catch (e) {}
 
-  function done() {
-    try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
-  }
+  var jobs = [];
 
-  var tasks = [];
-
-  if (window.caches) {
-    tasks.push(
+  if (typeof caches !== 'undefined') {
+    jobs.push(
       caches.keys().then(function (keys) {
         return Promise.all(keys.map(function (k) { return caches.delete(k); }));
       }).catch(function () {})
@@ -18,12 +16,16 @@
   }
 
   if ('serviceWorker' in navigator) {
-    tasks.push(
+    jobs.push(
       navigator.serviceWorker.getRegistrations().then(function (regs) {
         return Promise.all(regs.map(function (r) { return r.unregister(); }));
       }).catch(function () {})
     );
   }
 
-  Promise.all(tasks).then(done).catch(done);
+  Promise.all(jobs).then(function () {
+    try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+  }).catch(function () {
+    try { sessionStorage.setItem(KEY, '1'); } catch (e2) {}
+  });
 })();
