@@ -1,4 +1,4 @@
-/* Romex QC — gráfico 3D. Ajuste de espaciado de etiquetas. Solo este archivo. */
+/* Romex QC — gráfico 3D. Animación optimizada. Solo este archivo. */
 'use strict';
 
 function romexGetBaseline(codigo) {
@@ -26,6 +26,7 @@ var FISICO_3D_COLORS = {
 };
 
 var _romexAnimId = 0;
+var _romexRaf = 0;
 
 function _hexRgb(hex) {
   hex = String(hex || '#888888').replace('#', '');
@@ -81,6 +82,8 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   var box = canvas.parentElement;
   var W = Math.max(420, (box && box.clientWidth) ? Math.floor(box.clientWidth) : 760);
   var H = 460;
+  if (W < 600) H = 380;
+  if (W < 420) H = 320;
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   canvas.style.display = 'block';
@@ -110,7 +113,6 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   var nSer = series.length;
   if (!nCat) return true;
 
-  /* Más espacio abajo para etiquetas del eje X */
   var padL = 58, padR = 24, padT = 58, padB = 112;
   var plotW = W - padL - padR;
   var plotH = H - padT - padB;
@@ -123,7 +125,6 @@ function romexPaint3D(canvas, labels, series, title, progress) {
     });
   });
   if (maxV <= 0) maxV = 1;
-  /* Extra headroom para que los números no choquen con el título */
   var scaleMax = maxV * 1.28;
 
   ctx.font = '10px Roboto, system-ui, sans-serif';
@@ -166,10 +167,7 @@ function romexPaint3D(canvas, labels, series, title, progress) {
     ctx.fillStyle = side;
     ctx.fill();
 
-    var grad = ctx.createLinearGradient(x, top, x, yBottom);
-    grad.addColorStop(0, lighten(color, 0.1));
-    grad.addColorStop(1, color);
-    ctx.fillStyle = grad;
+    ctx.fillStyle = color;
     ctx.fillRect(x, top, w, h);
 
     ctx.beginPath();
@@ -188,7 +186,6 @@ function romexPaint3D(canvas, labels, series, title, progress) {
     return top;
   }
 
-  /* Guardar posiciones de valores para dibujarlos DESPUÉS (evita solapes) */
   var valueLabels = [];
 
   for (var i = 0; i < nCat; i++) {
@@ -214,7 +211,6 @@ function romexPaint3D(canvas, labels, series, title, progress) {
       });
     }
 
-    /* Etiqueta X: centrada, con espacio bajo la línea base */
     ctx.fillStyle = '#455a64';
     ctx.font = '500 10px Roboto, system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -222,9 +218,8 @@ function romexPaint3D(canvas, labels, series, title, progress) {
     ctx.fillText(shortLabel(labels[i]), groupCenter, baseY + 16);
   }
 
-  /* Valores encima: solo al final; si dos series, no solapan (mismo X distinto por barra) */
-  if (progress >= 0.9) {
-    ctx.globalAlpha = Math.min(1, (progress - 0.9) / 0.1);
+  if (progress >= 0.92) {
+    ctx.globalAlpha = Math.min(1, (progress - 0.92) / 0.08);
     ctx.font = '600 9px Roboto, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
@@ -242,7 +237,6 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   ctx.lineTo(W - padR, baseY);
   ctx.stroke();
 
-  /* Leyenda con más aire respecto al eje X */
   var legendY = H - 24;
   ctx.font = '500 11px Roboto, system-ui, sans-serif';
   var parts = [];
@@ -272,20 +266,29 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   return true;
 }
 
+/** Animación optimizada: cancela la anterior, ~400ms, menos trabajo por frame */
 function romexAnimate3D(canvas, labels, series, title) {
   if (!canvas) return false;
+  if (_romexRaf) {
+    cancelAnimationFrame(_romexRaf);
+    _romexRaf = 0;
+  }
   var animToken = ++_romexAnimId;
   var t0 = null;
-  var duration = 500;
+  var duration = 400;
 
   function frame(ts) {
     if (animToken !== _romexAnimId) return;
     if (t0 == null) t0 = ts;
     var t = Math.min(1, (ts - t0) / duration);
     romexPaint3D(canvas, labels, series, title, t);
-    if (t < 1) requestAnimationFrame(frame);
+    if (t < 1) {
+      _romexRaf = requestAnimationFrame(frame);
+    } else {
+      _romexRaf = 0;
+    }
   }
-  requestAnimationFrame(frame);
+  _romexRaf = requestAnimationFrame(frame);
   return true;
 }
 
