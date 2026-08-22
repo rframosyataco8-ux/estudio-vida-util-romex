@@ -2,11 +2,11 @@
 
 Sistema profesional de **Estudio de Vida Útil / Control de Calidad**  
 **Exportadora Romex S.A.** · Planta Chincha  
-**Versión 1.3.0**
+**Versión 1.5.0**
 
 ---
 
-## Qué incluye (v1.3)
+## Qué incluye (v1.5)
 
 - Login bcrypt + roles ADMIN / LECTOR + Recordarme
 - Microbiología y físicoquímico por producto/mes/año
@@ -17,6 +17,7 @@ Sistema profesional de **Estudio de Vida Útil / Control de Calidad**
 - **Alertas** de límites orientativos QC
 - **Auditoría** de cambios (tabla + UI)
 - **Dark mode** · PWA básica (manifest + service worker)
+- **UI v1.5** — animaciones fluidas, skeletons, transiciones de contenido, login glassmorphism, micro-interacciones
 - Tendencia físico con **selector de parámetro**
 - API dual: **SQL Server** (local) o **PostgreSQL** (Render)
 

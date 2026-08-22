@@ -1,4 +1,4 @@
-/* Dark mode — se activa con html[data-theme=dark] */
+/* Dark mode — se activa con html[data-theme=dark] · v1.5 */
 html[data-theme="dark"] {
   --md-primary: #90caf9;
   --md-primary-dark: #64b5f6;
@@ -11,20 +11,114 @@ html[data-theme="dark"] {
   --md-text-sec: #9aabbc;
   --md-success: #66bb6a;
   --md-success-bg: #1b3d24;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(144, 202, 249, 0.08);
 }
-html[data-theme="dark"] body { background: var(--md-surface); color: var(--md-text); }
+
+html[data-theme="dark"] body {
+  background: var(--md-surface);
+  color: var(--md-text);
+}
+
 html[data-theme="dark"] .drawer,
 html[data-theme="dark"] .app-bar,
 html[data-theme="dark"] .tabs,
 html[data-theme="dark"] .card,
-html[data-theme="dark"] .modal { background: var(--md-surface-1); }
+html[data-theme="dark"] .modal {
+  background: var(--md-surface-1);
+}
+
+html[data-theme="dark"] .app-bar {
+  background: color-mix(in srgb, var(--md-surface-1) 90%, transparent);
+}
+
 html[data-theme="dark"] .year-select,
 html[data-theme="dark"] .form-row input,
 html[data-theme="dark"] .form-row select,
-html[data-theme="dark"] .form-grid input { background: var(--md-surface-2); color: var(--md-text); border-color: var(--md-outline); }
-html[data-theme="dark"] .seg.active { background: var(--md-surface-2); }
-html[data-theme="dark"] td input { color: var(--md-text); }
-html[data-theme="dark"] .alert-banner { background: #3e2723; color: #ffccbc; border-color: #bf360c; }
+html[data-theme="dark"] .form-grid input {
+  background: var(--md-surface-2);
+  color: var(--md-text);
+  border-color: var(--md-outline);
+}
+
+html[data-theme="dark"] .seg.active {
+  background: var(--md-surface-2);
+}
+
+html[data-theme="dark"] td input {
+  color: var(--md-text);
+}
+
+html[data-theme="dark"] .alert-banner {
+  background: #3e2723;
+  color: #ffccbc;
+  border-color: #bf360c;
+}
+
+html[data-theme="dark"] .badge.warn {
+  background: #4e342e;
+  color: #ffb74d;
+}
+
+html[data-theme="dark"] .badge.danger {
+  background: #4a1c1c;
+  color: #ef9a9a;
+}
+
+html[data-theme="dark"] .btn-ghost {
+  background: var(--md-surface-2);
+  color: var(--md-text-sec);
+  border-color: var(--md-outline);
+}
+
+html[data-theme="dark"] .btn-ghost:hover {
+  background: var(--md-surface-1);
+  color: var(--md-text);
+}
+
+html[data-theme="dark"] .logout-btn:hover {
+  background: #3e1f1f;
+  color: #ef9a9a;
+  border-color: #c62828;
+}
+
+html[data-theme="dark"] .doc-head {
+  background: linear-gradient(90deg, var(--md-primary-container), #1a2a40);
+  color: var(--md-primary);
+}
+
+html[data-theme="dark"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--md-surface-2) 20%,
+    #2a3548 50%,
+    var(--md-surface-2) 80%
+  );
+  background-size: 200% 100%;
+}
+
+html[data-theme="dark"] .snackbar {
+  background: #e8eef4;
+  color: #1a2332;
+}
+
+html[data-theme="dark"] .db-status .dot {
+  box-shadow: 0 0 0 0 rgba(102, 187, 106, 0.4);
+  animation: dotPulseDark 2.2s ease-in-out infinite;
+}
+
+@keyframes dotPulseDark {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(102, 187, 106, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(102, 187, 106, 0); }
+}
+
+html[data-theme="dark"] td input:focus,
+html[data-theme="dark"] .form-row input:focus,
+html[data-theme="dark"] .form-row select:focus,
+html[data-theme="dark"] .form-grid input:focus,
+html[data-theme="dark"] .year-select:focus {
+  box-shadow: 0 0 0 3px rgba(144, 202, 249, 0.2);
+}
 
 .alert-banner {
   grid-column: 1 / -1;
@@ -36,8 +130,33 @@ html[data-theme="dark"] .alert-banner { background: #3e2723; color: #ffccbc; bor
   font-size: 13px;
   margin-bottom: 4px;
 }
-.alert-banner strong { display: block; margin-bottom: 4px; }
-.audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.audit-table th, .audit-table td { padding: 8px 6px; border-bottom: 1px solid var(--md-outline); text-align: left; }
-.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+
+.alert-banner strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.audit-table th,
+.audit-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--md-outline);
+  text-align: left;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
