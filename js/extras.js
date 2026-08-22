@@ -1,4 +1,4 @@
-/* Romex QC v1.5 — export, comparar, auditoría, dark mode, eliminar mes, SW update */
+/* Romex QC v1.5.1 — export, comparar, auditoría, dark mode, eliminar mes */
 'use strict';
 
 (function () {
@@ -177,35 +177,24 @@
   if (tabsEl) obs.observe(tabsEl, { childList: true });
   setInterval(injectDeleteMonthBtn, 2000);
 
-  /* Service worker: forzar actualización y limpiar cachés viejos */
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
-      reg.update();
-      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      reg.addEventListener('updatefound', function () {
-        var nw = reg.installing;
-        if (!nw) return;
-        nw.addEventListener('statechange', function () {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            /* Nueva versión lista — recargar una vez */
-            if (!sessionStorage.getItem('romex_sw_reloaded')) {
-              sessionStorage.setItem('romex_sw_reloaded', '1');
-              window.location.reload();
-            }
-          }
-        });
-      });
-    }).catch(function () {});
+  /* SW solo en puerto 3000 / producción. En Live Server (5500) NO registrar — causa UI vieja */
+  var port = location.port || '';
+  var isDevLive = port === '5500' || port === '5501' || port === '8080' || port === '5173' || location.protocol === 'file:';
 
-    /* Una vez: borrar caches antiguos del SW v13 */
-    if (window.caches) {
-      caches.keys().then(function (keys) {
-        keys.forEach(function (k) {
-          if (k.indexOf('romex-qc-') === 0 && k !== 'romex-qc-v15') {
-            caches.delete(k);
-          }
+  if ('serviceWorker' in navigator) {
+    if (isDevLive) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
+      }).catch(function () {});
+      if (window.caches) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { caches.delete(k); });
         });
-      });
+      }
+    } else {
+      navigator.serviceWorker.register('sw.js?v=1.5.1', { updateViaCache: 'none' }).then(function (reg) {
+        reg.update();
+      }).catch(function () {});
     }
   }
 })();
