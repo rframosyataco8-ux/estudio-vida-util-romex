@@ -1,16 +1,16 @@
-/* Romex QC — lógica de siembra / punto de partida v1.5.2
- * Lote YYMM → mes inicio | Punto partida = promedio parrillas (baselines.json)
- * Mes inicio: solo siembra | Meses siguientes: siembra vs resultado
- * Tendencia: línea siembra (constante) + resultados
+/* Romex QC — siembra / punto de partida v1.5.3
+ * Lote 44260304 → 2603 → MARZO (no mayo).
+ * El mes de siembra SIEMPRE aparece en tabs aunque no exista fila en BD.
  */
 'use strict';
 
 (function () {
   function getBl(codigo) {
+    codigo = codigo || (typeof activeCodigo !== 'undefined' ? activeCodigo : '');
     if (typeof romexGetBaseline === 'function') return romexGetBaseline(codigo);
     var all = window.ROMEX_BASELINES && window.ROMEX_BASELINES.products;
     return (all && all[codigo]) || {
-      anioInicio: 2026, mesInicio: 5,
+      anioInicio: 2026, mesInicio: 5, fechaSiembra: null,
       micro: { rtamv: 0, mohos: 0, coliformes: 0, ecoli: 0, enterobacterias: 0, levaduras: 0, saureus: 0 },
       fisico: {}
     };
@@ -24,41 +24,66 @@
   };
 
   window.romexIsStartMonth = function () {
-    var bl = getBl(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
+    var bl = getBl();
     return typeof activeYear !== 'undefined' && typeof activeMonth !== 'undefined' &&
-      activeYear === bl.anioInicio && activeMonth === bl.mesInicio;
+      +activeYear === +bl.anioInicio && +activeMonth === +bl.mesInicio;
   };
 
   window.romexSetMonthFromBaseline = function (codigo) {
     var bl = getBl(codigo);
-    if (bl.anioInicio && typeof activeYear !== 'undefined') {
-      activeYear = bl.anioInicio;
+    if (bl.anioInicio) {
+      if (typeof activeYear !== 'undefined') activeYear = +bl.anioInicio;
       var ys = document.getElementById('yearSelect');
       if (ys) ys.value = String(bl.anioInicio);
     }
     if (bl.mesInicio && typeof activeMonth !== 'undefined') {
-      activeMonth = bl.mesInicio;
+      activeMonth = +bl.mesInicio;
     }
   };
 
+  /** Fila sintética = promedio de siembra (cuando no hay registro en BD para el mes inicio) */
+  window.romexSyntheticSiembraRow = function (mode) {
+    var bl = getBl();
+    var row = {
+      anio: bl.anioInicio,
+      mes: bl.mesInicio,
+      fecha_analisis: bl.fechaSiembra || null,
+      estado: 'SIEMBRA',
+      analista: 'Promedio parrillas',
+      _siembra: true
+    };
+    if (mode === 'fisico') {
+      var f = bl.fisico || {};
+      ['humedad', 'ph', 'ceniza', 'grasa', 'fineza', 'acidez'].forEach(function (k) {
+        row[k] = f[k] != null ? f[k] : null;
+      });
+    } else {
+      var m = bl.micro || {};
+      ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'].forEach(function (k) {
+        row[k] = m[k] != null ? +m[k] : 0;
+      });
+    }
+    return row;
+  };
+
   window.romexSiembraNoteHtml = function () {
-    var bl = getBl(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
+    var bl = getBl();
     var mesNom = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[bl.mesInicio])
       ? MONTH_NAMES[bl.mesInicio] : bl.mesInicio;
     var fecha = bl.fechaSiembra || '—';
     var isStart = window.romexIsStartMonth();
     var avgHint = '';
     if (bl.micro) {
-      avgHint = ' · RTAMV siembra: ' + (bl.micro.rtamv != null ? bl.micro.rtamv : '—') +
+      avgHint = ' · RTAMV: ' + (bl.micro.rtamv != null ? bl.micro.rtamv : '—') +
         ' · Mohos: ' + (bl.micro.mohos != null ? bl.micro.mohos : '—');
     }
     return '<div class="siembra-note' + (isStart ? ' is-start' : '') + '">' +
       '<span class="material-icons-outlined" style="font-size:16px;vertical-align:middle">science</span> ' +
       '<strong>Punto de partida (siembra)</strong> · ' + mesNom + ' ' + (bl.anioInicio || '') +
-      (fecha && fecha !== '—' ? ' · Fecha siembra: ' + fecha : '') +
+      (fecha && fecha !== '—' ? ' · Fecha: ' + fecha : '') +
       avgHint +
       (isStart
-        ? ' · <em>Este mes muestra solo el promedio de siembra (parrillas)</em>'
+        ? ' · <em>Solo promedio de siembra (este mes no se compara aún)</em>'
         : ' · Comparación: siembra vs resultado del mes') +
       '</div>';
   };
@@ -66,11 +91,11 @@
   function injectNote() {
     var content = document.getElementById('content');
     if (!content || content.querySelector('.siembra-note')) return;
-    if (typeof romexSiembraNoteHtml !== 'function') return;
     if (!content.querySelector('.card')) return;
     content.insertAdjacentHTML('afterbegin', romexSiembraNoteHtml());
   }
 
+  /* —— Tendencias —— */
   window.romexDrawMicroTrendSiembra = function () {
     var cv = document.getElementById('cTrend');
     if (!cv || typeof Chart === 'undefined') return false;
@@ -78,79 +103,38 @@
       try { chartTrend.destroy(); } catch (e) {}
       chartTrend = null;
     }
-    var rows = typeof microRows !== 'undefined' ? microRows : [];
+    var rows = typeof microRows !== 'undefined' ? microRows.slice() : [];
+    var bl = getBl();
+    /* Asegurar que el mes de siembra exista en la tendencia */
+    if (bl.mesInicio && !rows.some(function (r) { return +r.mes === +bl.mesInicio; })) {
+      rows.unshift(romexSyntheticSiembraRow('micro'));
+      rows.sort(function (a, b) { return a.mes - b.mes; });
+    }
     if (!rows.length) return false;
-
     var labels = rows.map(function (r) {
-      return (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[r.mes]) ? MONTH_NAMES[r.mes] : String(r.mes);
+      return (MONTH_NAMES && MONTH_NAMES[r.mes]) ? MONTH_NAMES[r.mes] : String(r.mes);
     });
-    var bl = getBl(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
     var baseR = bl.micro && bl.micro.rtamv != null ? +bl.micro.rtamv : 0;
     var baseM = bl.micro && bl.micro.mohos != null ? +bl.micro.mohos : 0;
     var n = rows.length;
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-
     chartTrend = new Chart(cv, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [
-          {
-            label: 'Siembra RTAMV',
-            data: Array(n).fill(baseR),
-            borderColor: '#90a4ae',
-            borderDash: [6, 4],
-            pointRadius: 0,
-            fill: false,
-            tension: 0,
-            borderWidth: 2
-          },
-          {
-            label: 'RTAMV mes',
-            data: rows.map(function (r) { return +r.rtamv || 0; }),
-            borderColor: '#1565c0',
-            backgroundColor: 'rgba(21,101,192,0.12)',
-            fill: true,
-            tension: 0.35,
-            pointRadius: 4,
-            borderWidth: 2.5
-          },
-          {
-            label: 'Siembra Mohos',
-            data: Array(n).fill(baseM),
-            borderColor: '#bcaaa4',
-            borderDash: [6, 4],
-            pointRadius: 0,
-            fill: false,
-            tension: 0,
-            borderWidth: 2,
-            yAxisID: 'y1'
-          },
-          {
-            label: 'Mohos mes',
-            data: rows.map(function (r) { return +r.mohos || 0; }),
-            borderColor: '#ef6c00',
-            backgroundColor: 'rgba(239,108,0,0.1)',
-            fill: true,
-            tension: 0.35,
-            pointRadius: 4,
-            borderWidth: 2.5,
-            yAxisID: 'y1'
-          }
+          { label: 'Siembra RTAMV', data: Array(n).fill(baseR), borderColor: '#90a4ae', borderDash: [6, 4], pointRadius: 0, fill: false, tension: 0, borderWidth: 2 },
+          { label: 'RTAMV mes', data: rows.map(function (r) { return +r.rtamv || 0; }), borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,0.12)', fill: true, tension: 0.35, pointRadius: 4, borderWidth: 2.5 },
+          { label: 'Siembra Mohos', data: Array(n).fill(baseM), borderColor: '#bcaaa4', borderDash: [6, 4], pointRadius: 0, fill: false, tension: 0, borderWidth: 2, yAxisID: 'y1' },
+          { label: 'Mohos mes', data: rows.map(function (r) { return +r.mohos || 0; }), borderColor: '#ef6c00', backgroundColor: 'rgba(239,108,0,0.1)', fill: true, tension: 0.35, pointRadius: 4, borderWidth: 2.5, yAxisID: 'y1' }
         ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
           datalabels: { display: false },
-          title: {
-            display: true,
-            text: 'Tendencia · Siembra (punteada) vs resultado mensual',
-            font: { size: 12, weight: '500' },
-            color: dark ? '#90caf9' : '#1565c0'
-          }
+          title: { display: true, text: 'Tendencia · Siembra (punteada) vs resultado', font: { size: 12, weight: '500' }, color: dark ? '#90caf9' : '#1565c0' }
         },
         scales: {
           y: { position: 'left', title: { display: true, text: 'RTAMV', font: { size: 10 } }, beginAtZero: true },
@@ -168,64 +152,34 @@
       try { chartTrend.destroy(); } catch (e) {}
       chartTrend = null;
     }
-    var rows = typeof fisicoRows !== 'undefined' ? fisicoRows : [];
+    var rows = typeof fisicoRows !== 'undefined' ? fisicoRows.slice() : [];
+    var bl = getBl();
+    if (bl.mesInicio && !rows.some(function (r) { return +r.mes === +bl.mesInicio; })) {
+      rows.unshift(romexSyntheticSiembraRow('fisico'));
+      rows.sort(function (a, b) { return a.mes - b.mes; });
+    }
     if (!rows.length) return false;
-
     var labels = rows.map(function (r) {
-      return (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[r.mes]) ? MONTH_NAMES[r.mes] : String(r.mes);
+      return (MONTH_NAMES && MONTH_NAMES[r.mes]) ? MONTH_NAMES[r.mes] : String(r.mes);
     });
-    var bl = getBl(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
     var baseH = bl.fisico && bl.fisico.humedad != null ? +bl.fisico.humedad : 0;
     var n = rows.length;
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-
     chartTrend = new Chart(cv, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [
-          {
-            label: 'Siembra % Humedad',
-            data: Array(n).fill(baseH),
-            borderColor: '#90a4ae',
-            borderDash: [6, 4],
-            pointRadius: 0,
-            fill: false,
-            tension: 0,
-            borderWidth: 2
-          },
-          {
-            label: '% Humedad mes',
-            data: rows.map(function (r) { return +r.humedad || 0; }),
-            borderColor: '#1565c0',
-            backgroundColor: 'rgba(21,101,192,0.12)',
-            fill: true,
-            tension: 0.35,
-            pointRadius: 4,
-            borderWidth: 2.5
-          }
+          { label: 'Siembra % Humedad', data: Array(n).fill(baseH), borderColor: '#90a4ae', borderDash: [6, 4], pointRadius: 0, fill: false, tension: 0, borderWidth: 2 },
+          { label: '% Humedad mes', data: rows.map(function (r) { return +r.humedad || 0; }), borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,0.12)', fill: true, tension: 0.35, pointRadius: 4, borderWidth: 2.5 }
         ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-          datalabels: {
-            display: true,
-            formatter: function (v, ctx) {
-              if (ctx.datasetIndex === 0) return '';
-              return (+v).toFixed(2) + '%';
-            },
-            color: dark ? '#e3f2fd' : '#1565c0',
-            font: { size: 9 }
-          },
-          title: {
-            display: true,
-            text: 'Tendencia · Siembra vs % Humedad mensual',
-            font: { size: 12, weight: '500' },
-            color: dark ? '#90caf9' : '#1565c0'
-          }
+          datalabels: { display: false },
+          title: { display: true, text: 'Tendencia · Siembra vs % Humedad', font: { size: 12, weight: '500' }, color: dark ? '#90caf9' : '#1565c0' }
         },
         scales: { y: { beginAtZero: true, title: { display: true, text: '% Humedad', font: { size: 10 } } } }
       }
@@ -236,46 +190,163 @@
   var tries = 0;
   function patch() {
     tries++;
-    if (typeof loadAndShow !== 'function') {
-      if (tries < 80) setTimeout(patch, 50);
+    if (typeof renderTabs !== 'function' || typeof loadAndShow !== 'function') {
+      if (tries < 100) setTimeout(patch, 40);
       return;
     }
 
+    /* 1) Tabs: SIEMPRE incluir mes de siembra del lote */
+    var origTabs = renderTabs;
+    window.renderTabs = function () {
+      var bl = getBl();
+      var months = [];
+      if (typeof microRows !== 'undefined') {
+        microRows.concat(typeof fisicoRows !== 'undefined' ? fisicoRows : []).forEach(function (r) {
+          if (months.indexOf(+r.mes) < 0) months.push(+r.mes);
+        });
+      }
+      if (bl.mesInicio && months.indexOf(+bl.mesInicio) < 0) {
+        months.push(+bl.mesInicio);
+      }
+      months.sort(function (a, b) { return a - b; });
+      /* NO pisar activeMonth con el primer mes de BD si el usuario/lote pide siembra */
+      if (months.indexOf(+activeMonth) < 0 && months.length) {
+        /* Preferir mesInicio del lote si está en la lista */
+        if (bl.mesInicio && months.indexOf(+bl.mesInicio) >= 0) {
+          activeMonth = +bl.mesInicio;
+        } else {
+          activeMonth = months[0];
+        }
+      }
+      var el = document.getElementById('monthTabs');
+      if (!el) return;
+      el.innerHTML = months.map(function (m) {
+        var label = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[m]) ? MONTH_NAMES[m] : String(m);
+        var isSiembra = bl.mesInicio && +m === +bl.mesInicio;
+        return '<button type="button" class="tab' + (m === activeMonth ? ' active' : '') +
+          (isSiembra ? ' tab-siembra' : '') + '" data-m="' + m + '">' +
+          label + (isSiembra ? ' · siembra' : '') + '</button>';
+      }).join('');
+    };
+
+    /* 2) loadAndShow: mes = mes del lote ANTES de renderizar */
     var origLoad = loadAndShow;
     window.loadAndShow = async function () {
       if (typeof activeCodigo !== 'undefined' && activeCodigo) {
-        window.romexSetMonthFromBaseline(activeCodigo);
+        romexSetMonthFromBaseline(activeCodigo);
       }
       var res = await origLoad.apply(this, arguments);
-      setTimeout(injectNote, 30);
-      setTimeout(injectNote, 200);
+      setTimeout(injectNote, 40);
+      setTimeout(injectNote, 250);
       return res;
     };
 
-    if (typeof drawMicroTrend === 'function') {
-      window.drawMicroTrend = function () {
-        if (window.romexDrawMicroTrendSiembra()) return;
-      };
-    }
-    if (typeof drawHumTrend === 'function') {
-      window.drawHumTrend = function () {
-        if (window.romexDrawFisicoTrendSiembra()) return;
+    /* 3) renderMicro: si es mes siembra y no hay fila BD → usar promedio */
+    if (typeof renderMicro === 'function') {
+      var origMicro = renderMicro;
+      window.renderMicro = function (p) {
+        var d = typeof rowFor === 'function' ? rowFor('micro') : null;
+        if (!d && romexIsStartMonth()) {
+          d = romexSyntheticSiembraRow('micro');
+          /* Render mínimo + gráfico solo siembra */
+          var dis = ' disabled';
+          document.getElementById('content').innerHTML =
+            '<div class="card full"><div class="doc-bar"><div><div class="doc-co">EXPORTADORA ROMEX S.A.</div>' +
+            '<div class="doc-pl">Planta Cacao Chincha · Microbiología · SIEMBRA</div></div>' +
+            '<div class="doc-meta">I-EVUP-R-309</div></div>' +
+            '<div class="doc-head">Punto de partida · ' + (p && p.nombre ? p.nombre : '') + ' · ' +
+            (MONTH_NAMES[activeMonth] || activeMonth) + ' ' + activeYear + '</div>' +
+            '<div class="info-grid">' +
+            '<div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + (p && p.nombre ? p.nombre : '') + '</div></div>' +
+            '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + (p && p.lote ? p.lote : '') + '</div></div>' +
+            '<div class="info-cell"><div class="info-lbl">Fecha siembra</div><div class="info-val">' + (d.fecha_analisis || '—') + '</div></div>' +
+            '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="badge warn">SIEMBRA</span></div></div></div></div>' +
+            '<div class="card full"><div class="card-title">Promedio de siembra (ufc/gr) <span style="font-size:10px">solo lectura</span></div>' +
+            '<div class="table-wrap"><table><thead><tr>' +
+            MICRO_KEYS.map(function (k) { return '<th>' + MICRO_LABELS[k] + '</th>'; }).join('') +
+            '</tr></thead><tbody><tr>' +
+            MICRO_KEYS.map(function (k) {
+              return '<td><input type="number" value="' + (d[k] || 0) + '"' + dis + '></td>';
+            }).join('') +
+            '</tr></tbody></table></div></div>' +
+            (typeof chartCardHtml === 'function' ? chartCardHtml() : '<div class="card full"><canvas id="cMain"></canvas></div>') +
+            '<div class="card full"><div class="card-title">Tendencia</div><div class="chart-box sm"><canvas id="cTrend"></canvas></div></div>';
+          setTimeout(function () {
+            if (typeof drawMicroBar === 'function') drawMicroBar(d);
+            if (typeof drawMicroTrend === 'function') drawMicroTrend();
+            injectNote();
+          }, 50);
+          return;
+        }
+        origMicro(p);
+        setTimeout(injectNote, 60);
       };
     }
 
+    if (typeof renderFisico === 'function') {
+      var origFisico = renderFisico;
+      window.renderFisico = function (p) {
+        var d = typeof rowFor === 'function' ? rowFor('fisico') : null;
+        if (!d && romexIsStartMonth()) {
+          d = romexSyntheticSiembraRow('fisico');
+          var fields = ['humedad', 'ph', 'ceniza', 'grasa', 'fineza', 'acidez'].filter(function (k) {
+            return d[k] != null && d[k] !== '';
+          });
+          if (!fields.length) fields = ['humedad', 'ph', 'ceniza', 'grasa'];
+          document.getElementById('content').innerHTML =
+            '<div class="card full"><div class="doc-head">Punto de partida físicoquímico · ' +
+            (p && p.nombre ? p.nombre : '') + ' · ' + (MONTH_NAMES[activeMonth] || '') + ' ' + activeYear + '</div></div>' +
+            '<div class="card full"><div class="card-title">Promedio de siembra</div>' +
+            '<div class="table-wrap"><table><thead><tr>' +
+            fields.map(function (k) { return '<th>' + (FISICO_LABELS[k] || k) + '</th>'; }).join('') +
+            '</tr></thead><tbody><tr>' +
+            fields.map(function (k) {
+              return '<td><input type="number" value="' + d[k] + '" disabled></td>';
+            }).join('') +
+            '</tr></tbody></table></div></div>' +
+            (typeof chartCardHtml === 'function' ? chartCardHtml() : '') +
+            '<div class="card full"><div class="card-title">Tendencia</div><div class="chart-box sm"><canvas id="cTrend"></canvas></div></div>';
+          setTimeout(function () {
+            if (typeof drawFisicoBar === 'function') drawFisicoBar(d, fields);
+            if (typeof drawHumTrend === 'function') drawHumTrend();
+            injectNote();
+          }, 50);
+          return;
+        }
+        origFisico(p);
+        setTimeout(injectNote, 60);
+      };
+    }
+
+    if (typeof drawMicroTrend === 'function') {
+      window.drawMicroTrend = function () { romexDrawMicroTrendSiembra(); };
+    }
+    if (typeof drawHumTrend === 'function') {
+      window.drawHumTrend = function () { romexDrawFisicoTrendSiembra(); };
+    }
+
+    /* 4) Click producto: NO dejar activeMonth=5 — forzar mes del lote */
     document.addEventListener('click', function (e) {
-      if (e.target.closest('.tab') || e.target.closest('.seg') || e.target.closest('.nav-item')) {
-        setTimeout(injectNote, 120);
-        setTimeout(injectNote, 350);
+      var ni = e.target.closest('.nav-item');
+      if (ni && ni.dataset.c) {
+        /* Se ejecuta en capture; app.js pondrá activeMonth=5 después.
+           Re-aplicamos mes del lote justo antes de que loadAndShow pinte. */
+        var cod = ni.dataset.c;
+        setTimeout(function () {
+          romexSetMonthFromBaseline(cod);
+        }, 0);
+      }
+      if (e.target.closest('.tab') || e.target.closest('.seg') || ni) {
+        setTimeout(injectNote, 150);
       }
     }, true);
 
     var content = document.getElementById('content');
     if (content && window.MutationObserver) {
-      new MutationObserver(function () {
-        setTimeout(injectNote, 40);
-      }).observe(content, { childList: true });
+      new MutationObserver(function () { setTimeout(injectNote, 30); }).observe(content, { childList: true });
     }
+
+    console.log('[Romex siembra] v1.5.3 activo — mes inicio por lote');
   }
   patch();
 })();

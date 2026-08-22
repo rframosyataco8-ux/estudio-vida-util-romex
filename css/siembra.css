@@ -1,4 +1,4 @@
-/* Nota de punto de partida / siembra */
+/* Nota punto de partida / siembra */
 .siembra-note {
   grid-column: 1 / -1;
   margin: 0 0 12px;
@@ -16,6 +16,14 @@
   color: #5d4037;
 }
 .siembra-note em { font-style: normal; font-weight: 600; }
+.tab.tab-siembra {
+  color: #e65100 !important;
+  font-weight: 600;
+}
+.tab.tab-siembra.active {
+  border-bottom-color: #ef6c00 !important;
+  color: #e65100 !important;
+}
 [data-theme="dark"] .siembra-note {
   background: linear-gradient(135deg, #1a237e44 0%, #263238 100%);
   border-color: #37474f;
@@ -25,4 +33,7 @@
   background: linear-gradient(135deg, #4e342e55 0%, #3e2723 100%);
   border-color: #6d4c41;
   color: #ffcc80;
+}
+[data-theme="dark"] .tab.tab-siembra {
+  color: #ffb74d !important;
 }
