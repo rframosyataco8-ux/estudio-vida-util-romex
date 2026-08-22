@@ -1,4 +1,4 @@
-/* Romex QC — app principal */
+/* Romex QC — app principal v1.2 */
 'use strict';
 
 Chart.register(ChartDataLabels);
@@ -8,6 +8,7 @@ var MONTH_NAMES = ['', 'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'J
 var products = [];
 var activeCodigo = null;
 var activeMonth = 5;
+var activeYear = 2026;
 var activeMode = 'micro';
 var microRows = [];
 var fisicoRows = [];
@@ -15,7 +16,7 @@ var chartMain = null;
 var chartTrend = null;
 var saveTimer = null;
 var sqlReady = false;
-var userRol = localStorage.getItem('romex_rol') || 'LECTOR';
+var userRol = localStorage.getItem('romex_rol') || sessionStorage.getItem('romex_rol') || 'LECTOR';
 var isAdmin = userRol === 'ADMIN';
 
 var MICRO_KEYS = ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
@@ -57,12 +58,10 @@ function getToken() {
 }
 
 function clearSession() {
-  localStorage.removeItem('romex_token');
-  localStorage.removeItem('romex_user');
-  localStorage.removeItem('romex_rol');
-  sessionStorage.removeItem('romex_token');
-  sessionStorage.removeItem('romex_user');
-  sessionStorage.removeItem('romex_rol');
+  ['romex_token', 'romex_user', 'romex_rol'].forEach(function (k) {
+    localStorage.removeItem(k);
+    sessionStorage.removeItem(k);
+  });
 }
 
 function hideSplash() {
@@ -115,6 +114,7 @@ function setSaveInd(state, text) {
 
 function snack(msg) {
   var el = document.getElementById('snackbar');
+  if (!el) return;
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(el._t);
@@ -134,6 +134,13 @@ function applyRoleUI() {
       ? 'Administrador · Planta Chincha'
       : 'Solo lectura · Planta Chincha';
   }
+}
+
+function badgeClass(estado) {
+  var e = String(estado || '').toUpperCase();
+  if (e === 'LIBERADO' || e === 'CONFORME') return 'badge';
+  if (e === 'PENDIENTE' || e === 'EN REVISION' || e === 'EN REVISIÓN') return 'badge warn';
+  return 'badge danger';
 }
 
 function toggleDrawer() {
@@ -165,6 +172,14 @@ function closeModal(id) {
   if (el) el.hidden = true;
 }
 
+function readYearFromUI() {
+  var sel = document.getElementById('yearSelect');
+  if (sel) {
+    var y = parseInt(sel.value, 10);
+    if (y >= 2020 && y <= 2099) activeYear = y;
+  }
+}
+
 async function init() {
   if (!getToken()) {
     location.replace('login.html');
@@ -172,8 +187,9 @@ async function init() {
   }
 
   showSplashReady();
+  readYearFromUI();
 
-  var un = localStorage.getItem('romex_user');
+  var un = localStorage.getItem('romex_user') || sessionStorage.getItem('romex_user');
   if (un) document.getElementById('userName').textContent = un;
   applyRoleUI();
 
@@ -191,19 +207,21 @@ async function init() {
   try {
     var me = await api('/me');
     userRol = me.rol || 'LECTOR';
-    localStorage.setItem('romex_rol', userRol);
+    var store = localStorage.getItem('romex_token') ? localStorage : sessionStorage;
+    store.setItem('romex_rol', userRol);
     document.getElementById('userName').textContent = me.nombre || me.user;
     applyRoleUI();
 
-    await api('/health');
+    var health = await api('/health');
     products = await api('/productos');
     if (!products.length) {
-      throw new Error('No hay productos. Ejecuta el script SQL.');
+      throw new Error('No hay productos activos. Ejecuta sql/00_RESET_COMPLETO.sql o inserta productos.');
     }
     sqlReady = true;
     activeCodigo = products[0].codigo;
+    var dbLabel = (health && health.db === 'postgres') ? 'PostgreSQL' : 'SQL Server';
     document.getElementById('dbStatus').innerHTML =
-      '<span class="dot"></span> SQL Server conectado';
+      '<span class="dot"></span> ' + dbLabel + ' conectado';
     renderNav();
     await loadAndShow();
     hideSplash();
@@ -215,7 +233,10 @@ async function init() {
     document.getElementById('content').innerHTML =
       '<div class="loading"><strong>No se pudo conectar</strong><br><small>' +
       e.message +
-      '</small><br><br>1. Ejecuta sql/02_roles_usuarios.sql en SSMS<br>2. npm install && npm start en server/<br>3. Revisa .env</div>';
+      '</small><br><br>' +
+      '1. Ejecuta <code>sql/04_mejoras.sql</code> en SSMS (si aún no)<br>' +
+      '2. <code>cd server && npm install && npm start</code><br>' +
+      '3. Revisa <code>server/.env</code></div>';
   }
 }
 
@@ -265,13 +286,17 @@ async function loadAndShow() {
   var p = products.find(function (x) {
     return x.codigo === activeCodigo;
   });
+  if (!p) {
+    document.getElementById('content').innerHTML = '<div class="loading">Producto no encontrado</div>';
+    return;
+  }
   document.getElementById('productTitle').textContent = p.nombre;
   document.getElementById('loteBadge').textContent = 'Lote ' + p.lote;
   document.querySelectorAll('.seg').forEach(function (b) {
     b.classList.toggle('active', b.dataset.mode === activeMode);
   });
-  microRows = await api('/productos/' + activeCodigo + '/micro?anio=2026');
-  fisicoRows = await api('/productos/' + activeCodigo + '/fisico?anio=2026');
+  microRows = await api('/productos/' + activeCodigo + '/micro?anio=' + activeYear);
+  fisicoRows = await api('/productos/' + activeCodigo + '/fisico?anio=' + activeYear);
   renderTabs();
   if (activeMode === 'micro') renderMicro(p);
   else renderFisico(p);
@@ -288,25 +313,40 @@ function inputDisabledAttr() {
   return isAdmin ? '' : ' disabled';
 }
 
+function emptyStateHtml(tipo) {
+  var cta = isAdmin
+    ? '<br><br><button type="button" class="btn-primary" id="emptyAddMonth">Agregar mes</button>'
+    : '';
+  return (
+    '<div class="empty-state">' +
+    '<span class="material-icons-outlined">inbox</span>' +
+    '<strong>Sin datos ' + tipo + ' en ' + MONTH_NAMES[activeMonth] + ' ' + activeYear + '</strong>' +
+    'No hay registros para este producto y mes.' +
+    cta +
+    '</div>'
+  );
+}
+
 function renderMicro(p) {
   var d = rowFor('micro');
   if (!d) {
-    document.getElementById('content').innerHTML =
-      '<div class="loading">Sin datos micro este mes</div>';
+    document.getElementById('content').innerHTML = emptyStateHtml('microbiológicos');
     return;
   }
   var date = d.fecha_analisis ? String(d.fecha_analisis).slice(0, 10) : '—';
+  var estado = d.estado || 'LIBERADO';
   var dis = inputDisabledAttr();
   var headNote = isAdmin
     ? ' <span style="font-size:10px">auto-guarda</span>'
     : ' <span style="font-size:10px">solo lectura</span>';
+  var analista = d.analista || 'Nereyda Huachua Flores';
   document.getElementById('content').innerHTML =
     '<div class="card full"><div class="doc-bar"><div><div class="doc-co">EXPORTADORA ROMEX S.A.</div><div class="doc-pl">Planta Cacao Chincha · Microbiología</div></div><div class="doc-meta">I-EVUP-R-309</div></div>' +
-    '<div class="doc-head">Análisis Microbiológico · ' + p.nombre + ' · ' + MONTH_NAMES[activeMonth] + ' 2026</div>' +
+    '<div class="doc-head">Análisis Microbiológico · ' + p.nombre + ' · ' + MONTH_NAMES[activeMonth] + ' ' + activeYear + '</div>' +
     '<div class="info-grid"><div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + p.nombre + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Fecha</div><div class="info-val">' + date + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="badge">' + (d.estado || 'LIBERADO') + '</span></div></div></div></div>' +
+    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="' + badgeClass(estado) + '">' + estado + '</span></div></div></div></div>' +
     '<div class="card"><div class="card-title">Resultados (ufc/gr)' + headNote + '</div>' +
     '<div class="table-wrap"><table><thead><tr>' +
     MICRO_KEYS.map(function (k) {
@@ -314,7 +354,7 @@ function renderMicro(p) {
     }).join('') +
     '</tr></thead><tbody><tr>' +
     MICRO_KEYS.map(function (k) {
-      return '<td><input type="number" data-f="' + k + '" value="' + (d[k] || 0) + '"' + dis + '></td>';
+      return '<td><input type="number" min="0" data-f="' + k + '" value="' + (d[k] || 0) + '"' + dis + '></td>';
     }).join('') +
     '</tr></tbody></table></div></div>' +
     '<div class="card"><div class="card-title">Gráfico</div><div class="chart-box"><canvas id="cMain"></canvas></div></div>' +
@@ -323,8 +363,14 @@ function renderMicro(p) {
     p.nombre +
     '</strong> · ' +
     MONTH_NAMES[activeMonth] +
-    ' 2026 · <strong>LIBERADO</strong></div>' +
-    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">Nereyda Huachua Flores</div></div></div></div>';
+    ' ' +
+    activeYear +
+    ' · <strong>' +
+    estado +
+    '</strong></div>' +
+    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">' +
+    analista +
+    '</div></div></div></div>';
   setTimeout(function () {
     drawMicroBar(d);
     drawMicroTrend();
@@ -340,23 +386,24 @@ function fisicoFields(d) {
 function renderFisico(p) {
   var d = rowFor('fisico');
   if (!d) {
-    document.getElementById('content').innerHTML =
-      '<div class="loading">Sin datos físico este mes</div>';
+    document.getElementById('content').innerHTML = emptyStateHtml('físicoquímicos');
     return;
   }
   var fields = fisicoFields(d);
   var date = d.fecha_analisis ? String(d.fecha_analisis).slice(0, 10) : '—';
+  var estado = d.estado || 'CONFORME';
   var dis = inputDisabledAttr();
   var headNote = isAdmin
     ? ' <span style="font-size:10px">auto-guarda</span>'
     : ' <span style="font-size:10px">solo lectura</span>';
+  var analista = d.analista || 'Nereyda Huachua Flores';
   document.getElementById('content').innerHTML =
     '<div class="card full"><div class="doc-bar"><div><div class="doc-co">EXPORTADORA ROMEX S.A.</div><div class="doc-pl">Físicoquímico</div></div><div class="doc-meta">I-EVUP-R-309</div></div>' +
-    '<div class="doc-head">Análisis Físicoquímico · ' + p.nombre + ' · ' + MONTH_NAMES[activeMonth] + ' 2026</div>' +
+    '<div class="doc-head">Análisis Físicoquímico · ' + p.nombre + ' · ' + MONTH_NAMES[activeMonth] + ' ' + activeYear + '</div>' +
     '<div class="info-grid"><div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + p.nombre + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Fecha</div><div class="info-val">' + date + '</div></div>' +
-    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="badge">' + (d.estado || 'CONFORME') + '</span></div></div></div></div>' +
+    '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="' + badgeClass(estado) + '">' + estado + '</span></div></div></div></div>' +
     '<div class="card"><div class="card-title">Resultados' + headNote + '</div>' +
     '<div class="table-wrap"><table><thead><tr>' +
     fields.map(function (k) {
@@ -373,8 +420,14 @@ function renderFisico(p) {
     p.nombre +
     '</strong> · ' +
     MONTH_NAMES[activeMonth] +
-    ' 2026 · <strong>CONFORME</strong></div>' +
-    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">Nereyda Huachua Flores</div></div></div></div>';
+    ' ' +
+    activeYear +
+    ' · <strong>' +
+    estado +
+    '</strong></div>' +
+    '<div class="sig"><div class="sig-box"><div class="sig-lbl">Analista</div><div class="sig-line"></div><div class="sig-name">' +
+    analista +
+    '</div></div></div></div>';
   setTimeout(function () {
     drawFisicoBar(d, fields);
     drawHumTrend();
@@ -382,14 +435,18 @@ function renderFisico(p) {
 }
 
 function destroyCharts() {
-  if (chartMain) {
-    chartMain.destroy();
-    chartMain = null;
-  }
-  if (chartTrend) {
-    chartTrend.destroy();
-    chartTrend = null;
-  }
+  try {
+    if (chartMain) {
+      chartMain.destroy();
+      chartMain = null;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (chartTrend) {
+      chartTrend.destroy();
+      chartTrend = null;
+    }
+  } catch (e2) { /* ignore */ }
 }
 
 function drawMicroBar(d) {
@@ -399,21 +456,13 @@ function drawMicroBar(d) {
   chartMain = new Chart(cv, {
     type: 'bar',
     data: {
-      labels: MICRO_KEYS.map(function (k) {
-        return MICRO_LABELS[k];
-      }),
-      datasets: [
-        {
-          data: MICRO_KEYS.map(function (k) {
-            return d[k] || 0;
-          }),
-          backgroundColor: MICRO_KEYS.map(function (k) {
-            return COLORS[k];
-          }),
-          borderRadius: 6,
-          barPercentage: 0.55
-        }
-      ]
+      labels: MICRO_KEYS.map(function (k) { return MICRO_LABELS[k]; }),
+      datasets: [{
+        data: MICRO_KEYS.map(function (k) { return d[k] || 0; }),
+        backgroundColor: MICRO_KEYS.map(function (k) { return COLORS[k]; }),
+        borderRadius: 6,
+        barPercentage: 0.55
+      }]
     },
     options: {
       responsive: true,
@@ -425,9 +474,7 @@ function drawMicroBar(d) {
           anchor: 'end',
           align: 'end',
           font: { size: 10 },
-          formatter: function (v) {
-            return v || '0';
-          }
+          formatter: function (v) { return v || '0'; }
         }
       },
       scales: {
@@ -444,15 +491,11 @@ function drawMicroTrend() {
   chartTrend = new Chart(cv, {
     type: 'line',
     data: {
-      labels: microRows.map(function (r) {
-        return MONTH_NAMES[r.mes];
-      }),
+      labels: microRows.map(function (r) { return MONTH_NAMES[r.mes]; }),
       datasets: [
         {
           label: 'RTAMV',
-          data: microRows.map(function (r) {
-            return r.rtamv;
-          }),
+          data: microRows.map(function (r) { return r.rtamv; }),
           borderColor: COLORS.rtamv,
           fill: true,
           tension: 0.35,
@@ -460,9 +503,7 @@ function drawMicroTrend() {
         },
         {
           label: 'Mohos',
-          data: microRows.map(function (r) {
-            return r.mohos;
-          }),
+          data: microRows.map(function (r) { return r.mohos; }),
           borderColor: COLORS.mohos,
           fill: true,
           tension: 0.35,
@@ -497,20 +538,12 @@ function drawFisicoBar(d, fields) {
   chartMain = new Chart(cv, {
     type: 'bar',
     data: {
-      labels: fields.map(function (k) {
-        return FISICO_LABELS[k];
-      }),
-      datasets: [
-        {
-          data: fields.map(function (k) {
-            return +d[k];
-          }),
-          backgroundColor: fields.map(function (k) {
-            return COLORS[k] || '#1565c0';
-          }),
-          borderRadius: 6
-        }
-      ]
+      labels: fields.map(function (k) { return FISICO_LABELS[k]; }),
+      datasets: [{
+        data: fields.map(function (k) { return +d[k]; }),
+        backgroundColor: fields.map(function (k) { return COLORS[k] || '#1565c0'; }),
+        borderRadius: 6
+      }]
     },
     options: {
       responsive: true,
@@ -521,9 +554,7 @@ function drawFisicoBar(d, fields) {
           color: '#424242',
           anchor: 'end',
           align: 'end',
-          formatter: function (v) {
-            return (+v).toFixed(2);
-          }
+          formatter: function (v) { return (+v).toFixed(2); }
         }
       },
       scales: {
@@ -540,20 +571,14 @@ function drawHumTrend() {
   chartTrend = new Chart(cv, {
     type: 'line',
     data: {
-      labels: fisicoRows.map(function (r) {
-        return MONTH_NAMES[r.mes];
-      }),
-      datasets: [
-        {
-          data: fisicoRows.map(function (r) {
-            return +r.humedad || 0;
-          }),
-          borderColor: COLORS.humedad,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 4
-        }
-      ]
+      labels: fisicoRows.map(function (r) { return MONTH_NAMES[r.mes]; }),
+      datasets: [{
+        data: fisicoRows.map(function (r) { return +r.humedad || 0; }),
+        borderColor: COLORS.humedad,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 4
+      }]
     },
     options: {
       responsive: true,
@@ -564,9 +589,7 @@ function drawHumTrend() {
           color: COLORS.humedad,
           anchor: 'end',
           align: 'top',
-          formatter: function (v) {
-            return v.toFixed(2) + '%';
-          }
+          formatter: function (v) { return v.toFixed(2) + '%'; }
         }
       }
     }
@@ -585,17 +608,16 @@ async function autoSave() {
   if (!inputs.length || !sqlReady || !isAdmin) return;
   var body = {};
   inputs.forEach(function (inp) {
-    body[inp.dataset.f] = parseFloat(inp.value) || 0;
+    body[inp.dataset.f] = parseFloat(inp.value);
+    if (!Number.isFinite(body[inp.dataset.f])) body[inp.dataset.f] = 0;
   });
   try {
     await api(
-      '/productos/' + activeCodigo + '/' + activeMode + '/' + activeMonth + '?anio=2026',
+      '/productos/' + activeCodigo + '/' + activeMode + '/' + activeMonth + '?anio=' + activeYear,
       { method: 'PUT', body: JSON.stringify(body) }
     );
     setSaveInd('saved', 'Guardado');
-    setTimeout(function () {
-      setSaveInd('', '');
-    }, 2500);
+    setTimeout(function () { setSaveInd('', ''); }, 2500);
   } catch (e) {
     setSaveInd('', '');
     snack('Error al guardar: ' + e.message);
@@ -605,29 +627,22 @@ async function autoSave() {
 function openAddMonthModal() {
   if (!isAdmin || !activeCodigo) return;
   var existing = {};
-  microRows.forEach(function (r) {
-    existing[r.mes] = true;
-  });
+  microRows.forEach(function (r) { existing[r.mes] = true; });
   var next = null;
   for (var m = 1; m <= 12; m++) {
-    if (!existing[m]) {
-      next = m;
-      break;
-    }
+    if (!existing[m]) { next = m; break; }
   }
   if (!next) {
-    snack('Ya existen los 12 meses');
+    snack('Ya existen los 12 meses de ' + activeYear);
     return;
   }
-  document.getElementById('mesAnio').value = 2026;
+  document.getElementById('mesAnio').value = activeYear;
   document.getElementById('mesNumero').value = String(next);
   document.getElementById('mesFecha').value =
-    '2026-' + String(next).padStart(2, '0') + '-15';
-  ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'].forEach(
-    function (k) {
-      document.getElementById('m_' + k).value = 0;
-    }
-  );
+    activeYear + '-' + String(next).padStart(2, '0') + '-15';
+  ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'].forEach(function (k) {
+    document.getElementById('m_' + k).value = 0;
+  });
   document.getElementById('f_humedad').value = 0;
   document.getElementById('f_ph').value = 0;
   document.getElementById('f_ceniza').value = 0;
@@ -686,6 +701,9 @@ async function saveMonth() {
     closeModal('modalMes');
     snack('Mes ' + MONTH_NAMES[mes] + ' agregado');
     activeMonth = mes;
+    activeYear = anio;
+    var ys = document.getElementById('yearSelect');
+    if (ys) ys.value = String(anio);
     await loadAndShow();
   } catch (e) {
     snack(e.message);
@@ -756,7 +774,7 @@ document.addEventListener('click', function (e) {
     toggleProductsMenu();
     return;
   }
-  if (e.target.closest('#addMonthBtn')) {
+  if (e.target.closest('#addMonthBtn') || e.target.closest('#emptyAddMonth')) {
     openAddMonthModal();
     return;
   }
@@ -790,17 +808,13 @@ document.addEventListener('click', function (e) {
     activeCodigo = ni.dataset.c;
     activeMonth = 5;
     renderNav();
-    loadAndShow().catch(function (err) {
-      snack(err.message);
-    });
+    loadAndShow().catch(function (err) { snack(err.message); });
     return;
   }
   var tab = e.target.closest('.tab');
   if (tab && sqlReady) {
     activeMonth = +tab.dataset.m;
-    var p = products.find(function (x) {
-      return x.codigo === activeCodigo;
-    });
+    var p = products.find(function (x) { return x.codigo === activeCodigo; });
     renderTabs();
     if (activeMode === 'micro') renderMicro(p);
     else renderFisico(p);
@@ -809,14 +823,19 @@ document.addEventListener('click', function (e) {
   var seg = e.target.closest('.seg');
   if (seg && sqlReady) {
     activeMode = seg.dataset.mode;
-    var p2 = products.find(function (x) {
-      return x.codigo === activeCodigo;
-    });
+    var p2 = products.find(function (x) { return x.codigo === activeCodigo; });
     document.querySelectorAll('.seg').forEach(function (b) {
       b.classList.toggle('active', b.dataset.mode === activeMode);
     });
     if (activeMode === 'micro') renderMicro(p2);
     else renderFisico(p2);
+  }
+});
+
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'yearSelect' && sqlReady) {
+    readYearFromUI();
+    loadAndShow().catch(function (err) { snack(err.message); });
   }
 });
 
@@ -826,7 +845,8 @@ document.addEventListener('input', function (e) {
   if (!f) return;
   var d = rowFor(activeMode);
   if (!d) return;
-  d[f] = parseFloat(e.target.value) || 0;
+  d[f] = parseFloat(e.target.value);
+  if (!Number.isFinite(d[f])) d[f] = 0;
   if (activeMode === 'micro') drawMicroBar(d);
   else drawFisicoBar(d, fisicoFields(d));
   scheduleAutoSave();
