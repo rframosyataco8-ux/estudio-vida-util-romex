@@ -3,39 +3,95 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bienvenido · Romex</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#5b6cff">
+<title>Bienvenido · Romex QC</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:rgb(184,184,211);padding:24px}
-.shell{width:100%;max-width:990px;background:#fff;border-radius:12px;box-shadow:0 24px 58px rgba(50,60,140,.25);overflow:hidden;display:flex;min-height:660px}
-.left{width:46%;min-width:300px;background:#fff;padding:34px 0 40px 36px;display:flex;flex-direction:column}
-.brand{font-size:17px;font-weight:700;color:#2c3e8c;margin:0 0 20px 35px}
-.panel{flex:1;background:#E8ECF8;border-radius:16px;padding:38px 56px 36px;display:flex;flex-direction:column;justify-content:center}
-.panel h1{font-size:30px;font-weight:700;color:#1e2a6e;letter-spacing:2px;text-align:center;margin-bottom:34px}
-.field{margin-bottom:20px}
-.field label{display:block;font-size:13px;font-weight:600;color:#5a6a9a;margin-bottom:4px}
-.field input{width:100%;border:none;border-bottom:2px solid #40549b;background:transparent;padding:6px 0 7px;font-size:13px;font-family:inherit;color:#1e2a6e;outline:none}
-.field input:focus{border-bottom-color:#5b6cff}
+:root{
+  --accent:#5b6cff;
+  --accent-deep:#4a5af0;
+  --text:#1e2a6e;
+  --muted:rgba(30,42,110,.62);
+}
+body{
+  font-family:'Roboto',system-ui,sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgb(184,184,211);
+  padding:24px;
+  overflow-x:hidden;
+  position:relative;
+}
+.mesh{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.mesh span{position:absolute;border-radius:50%;filter:blur(40px);will-change:transform}
+.m1{width:55vmax;height:55vmax;top:-20%;left:-15%;background:radial-gradient(circle,rgba(113,130,246,.45),transparent 70%);animation:drift 12s ease-in-out infinite}
+.m2{width:45vmax;height:45vmax;bottom:-15%;right:-10%;background:radial-gradient(circle,rgba(91,108,255,.38),transparent 70%);animation:drift 14s ease-in-out infinite reverse;animation-delay:-3s}
+.m3{width:30vmax;height:30vmax;top:35%;right:15%;background:radial-gradient(circle,rgba(255,255,255,.5),transparent 70%);animation:drift 10s ease-in-out infinite;animation-delay:-5s}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(4%,-3%) scale(1.08)}66%{transform:translate(-3%,4%) scale(.95)}}
+.shell{
+  position:relative;z-index:1;
+  width:100%;max-width:980px;
+  background:rgba(255,255,255,.55);
+  backdrop-filter:blur(20px) saturate(1.25);
+  -webkit-backdrop-filter:blur(20px) saturate(1.25);
+  border:1px solid rgba(255,255,255,.6);
+  border-radius:24px;
+  box-shadow:0 24px 64px rgba(50,60,140,.22),0 0 0 1px rgba(255,255,255,.25) inset;
+  overflow:hidden;
+  display:flex;
+  min-height:620px;
+  animation:shellIn .75s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes shellIn{from{opacity:0;transform:translateY(28px) scale(.96)}to{opacity:1;transform:none}}
+.left{width:46%;min-width:300px;padding:36px 28px 40px 36px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text);margin-bottom:28px;animation:fadeUp .6s .15s cubic-bezier(.22,1,.36,1) both}
+.brand .material-icons-outlined{color:var(--accent);font-size:26px}
+.panel{flex:1;background:rgba(232,236,248,.75);border-radius:18px;padding:36px 40px 32px;display:flex;flex-direction:column;justify-content:center;border:1px solid rgba(255,255,255,.5);animation:fadeUp .65s .25s cubic-bezier(.22,1,.36,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+.panel h1{font-size:26px;font-weight:700;color:var(--text);letter-spacing:1.5px;text-align:center;margin-bottom:8px}
+.panel .sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:28px}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:12px;font-weight:600;color:#5a6a9a;margin-bottom:6px;letter-spacing:.3px}
+.field input{width:100%;border:none;border-bottom:2px solid #40549b;background:transparent;padding:8px 0 9px;font-size:14px;font-family:inherit;color:var(--text);outline:none;transition:border-color .25s ease,box-shadow .25s ease}
+.field input:focus{border-bottom-color:var(--accent);box-shadow:0 3px 0 -1px rgba(91,108,255,.25)}
 .field input.invalid{border-bottom-color:#c62828}
-.field .hint{font-size:11px;color:#c62828;margin-top:4px;min-height:14px}
-.row{display:flex;align-items:center;justify-content:space-between;margin:7px 0 25px;font-size:11px;color:#2c448f}
-.row label{display:flex;align-items:center;gap:6px;cursor:pointer}
-.btn{width:100%;border:none;border-radius:0;padding:15px;background:#7182f6;color:#fff;font-size:15px;font-weight:600;letter-spacing:2px;cursor:pointer;font-family:inherit;transition:.2s}
-.btn:hover{background:#6f82f5;box-shadow:0 8px 20px rgba(91,108,255,.35)}
-.btn:disabled{opacity:.65;cursor:wait}
-.err{margin-top:12px;font-size:12px;color:#c62828;text-align:center;min-height:16px}
-.right{flex:1;background:#fff;display:flex;align-items:center;justify-content:center;padding:44px 32px 28px}
-.login-illustration{display:block;width:100%;max-width:500px;height:auto;object-fit:contain}
-@media(max-width:800px){body{padding:14px}.shell{flex-direction:column;max-width:440px;min-height:0}.left{width:100%;padding:28px 24px 24px}.brand{margin-left:4px}.panel{padding:38px 34px 34px;min-height:470px}.right{display:none}}
+.field .hint{font-size:11px;color:#c62828;margin-top:5px;min-height:14px}
+.row{display:flex;align-items:center;justify-content:space-between;margin:4px 0 22px;font-size:12px;color:#2c448f}
+.row label{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.row input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+.btn{width:100%;border:none;border-radius:12px;padding:14px;background:linear-gradient(135deg,var(--accent) 0%,var(--accent-deep) 100%);color:#fff;font-size:14px;font-weight:600;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:transform .2s ease,box-shadow .25s ease,opacity .2s;box-shadow:0 8px 24px rgba(91,108,255,.35);position:relative;overflow:hidden}
+.btn:hover{box-shadow:0 12px 28px rgba(91,108,255,.45);transform:translateY(-1px)}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.7;cursor:wait;transform:none}
+.btn .spin{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite;margin:0 auto}
+.btn.loading .label{display:none}
+.btn.loading .spin{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{margin-top:14px;font-size:12px;color:#c62828;text-align:center;min-height:18px}
+.right{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 32px 32px;animation:fadeUp .7s .35s cubic-bezier(.22,1,.36,1) both}
+.login-illustration{display:block;width:100%;max-width:480px;height:auto;object-fit:contain;filter:drop-shadow(0 12px 28px rgba(50,60,140,.15));transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.login-illustration:hover{transform:scale(1.02)}
+.footer-note{margin-top:18px;text-align:center;font-size:11px;color:var(--muted);animation:fadeUp .5s .5s both}
+@media(max-width:800px){body{padding:14px}.shell{flex-direction:column;max-width:440px;min-height:0}.left{width:100%;padding:28px 20px 24px}.panel{padding:32px 28px 28px}.right{display:none}.panel h1{font-size:22px}}
 </style>
 </head>
 <body>
+<div class="mesh" aria-hidden="true">
+  <span class="m1"></span><span class="m2"></span><span class="m3"></span>
+</div>
 <div class="shell">
   <div class="left">
-    <div class="brand">Exportadora RomEx S.A.</div>
+    <div class="brand">
+      <span class="material-icons-outlined">science</span>
+      Exportadora RomEx S.A.
+    </div>
     <div class="panel">
       <h1>BIENVENIDO</h1>
+      <p class="sub">Control de Calidad · Planta Chincha</p>
       <form id="form" novalidate>
         <div class="field">
           <label>Usuario</label>
@@ -50,13 +106,17 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
         <div class="row">
           <label><input type="checkbox" id="remember"> Recordarme</label>
         </div>
-        <button type="submit" class="btn" id="btn">INGRESAR</button>
+        <button type="submit" class="btn" id="btn">
+          <span class="label">INGRESAR</span>
+          <span class="spin" aria-hidden="true"></span>
+        </button>
         <div class="err" id="err"></div>
       </form>
     </div>
+    <p class="footer-note">Romex QC · Estudio de Vida Útil</p>
   </div>
   <div class="right">
-    <img class="login-illustration" src="img/Gemini_Generated_Image_8gkfoz8gkfoz8gkf.jpg" alt="Ilustración login">
+    <img class="login-illustration" src="img/Gemini_Generated_Image_8gkfoz8gkfoz8gkf.jpg" alt="Ilustración login Romex">
   </div>
 </div>
 <script>
@@ -65,98 +125,52 @@ body{font-family:'Poppins',system-ui,sans-serif;min-height:100vh;display:flex;al
     location.href = 'index.html';
     return;
   }
-
   function resolveApiBase() {
-    var host = location.hostname;
-    var port = location.port;
-    var proto = location.protocol;
-    if (proto === 'file:' || port === '5500' || port === '5501' || port === '8080' || port === '5173') {
-      return 'http://localhost:3000';
-    }
-    if (host === 'localhost' || host === '127.0.0.1') {
-      if (port && port !== '3000') return 'http://localhost:3000';
-    }
+    var host = location.hostname, port = location.port, proto = location.protocol;
+    if (proto === 'file:' || port === '5500' || port === '5501' || port === '8080' || port === '5173') return 'http://localhost:3000';
+    if ((host === 'localhost' || host === '127.0.0.1') && port && port !== '3000') return 'http://localhost:3000';
     return '';
   }
-
   var API = resolveApiBase();
-
   function validateLogin() {
-    var u = document.getElementById('user');
-    var p = document.getElementById('pass');
-    var uh = document.getElementById('userHint');
-    var ph = document.getElementById('passHint');
+    var u = document.getElementById('user'), p = document.getElementById('pass');
+    var uh = document.getElementById('userHint'), ph = document.getElementById('passHint');
     var ok = true;
-    uh.textContent = '';
-    ph.textContent = '';
-    u.classList.remove('invalid');
-    p.classList.remove('invalid');
-
-    var user = u.value.trim();
-    var pass = p.value;
-
-    if (!user) {
-      uh.textContent = 'Ingresa tu usuario';
-      u.classList.add('invalid');
-      ok = false;
-    } else if (user.length < 3) {
-      uh.textContent = 'Mínimo 3 caracteres';
-      u.classList.add('invalid');
-      ok = false;
-    }
-
-    if (!pass) {
-      ph.textContent = 'Ingresa tu contraseña';
-      p.classList.add('invalid');
-      ok = false;
-    } else if (pass.length < 4) {
-      ph.textContent = 'Mínimo 4 caracteres';
-      p.classList.add('invalid');
-      ok = false;
-    }
-
+    uh.textContent = ''; ph.textContent = '';
+    u.classList.remove('invalid'); p.classList.remove('invalid');
+    var user = u.value.trim(), pass = p.value;
+    if (!user) { uh.textContent = 'Ingresa tu usuario'; u.classList.add('invalid'); ok = false; }
+    else if (user.length < 3) { uh.textContent = 'Mínimo 3 caracteres'; u.classList.add('invalid'); ok = false; }
+    if (!pass) { ph.textContent = 'Ingresa tu contraseña'; p.classList.add('invalid'); ok = false; }
+    else if (pass.length < 4) { ph.textContent = 'Mínimo 4 caracteres'; p.classList.add('invalid'); ok = false; }
     return ok;
   }
-
   document.getElementById('form').addEventListener('submit', async function (e) {
     e.preventDefault();
     var err = document.getElementById('err');
     err.textContent = '';
     if (!validateLogin()) return;
-
     var btn = document.getElementById('btn');
     btn.disabled = true;
-    btn.textContent = 'INGRESANDO…';
+    btn.classList.add('loading');
     try {
       var r = await fetch(API + '/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user: document.getElementById('user').value.trim(),
-          pass: document.getElementById('pass').value
-        })
+        body: JSON.stringify({ user: document.getElementById('user').value.trim(), pass: document.getElementById('pass').value })
       });
       var data = await r.json().catch(function () { return {}; });
       if (!r.ok) throw new Error(data.error || 'Credenciales inválidas');
-
-      // Limpiar ambos storages y guardar solo donde corresponde
-      localStorage.removeItem('romex_token');
-      localStorage.removeItem('romex_user');
-      localStorage.removeItem('romex_rol');
-      sessionStorage.removeItem('romex_token');
-      sessionStorage.removeItem('romex_user');
-      sessionStorage.removeItem('romex_rol');
-
+      ['romex_token','romex_user','romex_rol'].forEach(function (k) { localStorage.removeItem(k); sessionStorage.removeItem(k); });
       var store = document.getElementById('remember').checked ? localStorage : sessionStorage;
       store.setItem('romex_token', data.token);
       store.setItem('romex_user', data.nombre || data.user);
       store.setItem('romex_rol', data.rol || 'LECTOR');
-
       location.href = 'index.html';
     } catch (ex) {
       err.textContent = ex.message || 'Error de conexión';
       btn.disabled = false;
-      btn.textContent = 'INGRESAR';
+      btn.classList.remove('loading');
     }
   });
 })();
