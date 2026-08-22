@@ -1,6 +1,6 @@
 /**
- * Romex QC API v1.4.1
- * + DELETE mes · auditoría · alertas
+ * Romex QC API v1.5.1
+ * + DELETE mes · auditoría · alertas · no-cache static
  */
 'use strict';
 
@@ -17,7 +17,7 @@ const DB_TYPE = (process.env.DB_TYPE || 'mssql').toLowerCase();
 const TOKEN_HOURS = 12;
 const BCRYPT_ROUNDS = 10;
 const IS_PROD = process.env.NODE_ENV === 'production';
-const VERSION = '1.4.1';
+const VERSION = '1.5.1';
 
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
@@ -339,7 +339,6 @@ app.delete('/api/productos/:codigo', authRequired, adminRequired, async function
   } catch (e) { res.status(500).json({ error: safeError(e) }); }
 });
 
-/* ELIMINAR MES (micro + físico) */
 app.delete('/api/productos/:codigo/mes/:mes', authRequired, adminRequired, async function (req, res) {
   try {
     var codigo = req.params.codigo;
@@ -476,10 +475,21 @@ app.post('/api/productos/:codigo/mes', authRequired, adminRequired, async functi
   } catch (e) { res.status(500).json({ error: safeError(e) }); }
 });
 
-app.use(express.static(path.join(__dirname, '..')));
+/* Archivos estáticos: no cachear HTML/JS/CSS para no servir UI vieja */
+var staticRoot = path.join(__dirname, '..');
+app.use(express.static(staticRoot, {
+  setHeaders: function (res, filePath) {
+    if (/\.(html|js|css)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 app.get('*', function (req, res) {
   if (req.path.indexOf('/api') === 0) return res.status(404).json({ error: 'Not found' });
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 initDb().then(function () {
