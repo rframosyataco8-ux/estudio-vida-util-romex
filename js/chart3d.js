@@ -1,4 +1,4 @@
-/* Romex QC — SOLO gráfico 3D (Canvas). No modifica otras funciones de la app. */
+/* Romex QC — SOLO gráfico 3D (Canvas). No modifica app.js ni extras. */
 'use strict';
 
 function romexGetBaseline(codigo) {
@@ -24,6 +24,8 @@ var FISICO_3D_COLORS = {
   humedad: '#0288d1', ph: '#7b1fa2', ceniza: '#6d4c41', grasa: '#f9a825',
   fineza: '#00897b', acidez: '#c62828'
 };
+
+var _romexAnimId = 0;
 
 function _hexRgb(hex) {
   hex = String(hex || '#888888').replace('#', '');
@@ -55,13 +57,15 @@ function fmtVal(v) {
   var t = (Math.round(v * 100) / 100).toFixed(2);
   return t.replace(/\.00$/, '').replace(/(\.[1-9])0$/, '$1');
 }
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
 
-/**
- * Dibuja columnas 3D profesionales (isométricas suaves).
- * API pública estable: romexPaint3D / romexDrawMicro3D / romexDrawFisico3D
- */
-function romexPaint3D(canvas, labels, series, title) {
+function romexPaint3D(canvas, labels, series, title, progress) {
   if (!canvas) return false;
+  if (progress == null || progress > 1) progress = 1;
+  if (progress < 0) progress = 0;
+  var p = easeOutCubic(progress);
 
   var box = canvas.parentElement;
   var W = Math.max(360, (box && box.clientWidth) ? box.clientWidth - 4 : 720);
@@ -78,11 +82,9 @@ function romexPaint3D(canvas, labels, series, title) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  /* Fondo */
   ctx.fillStyle = '#fafbfc';
   ctx.fillRect(0, 0, W, H);
 
-  /* Título */
   ctx.fillStyle = '#263238';
   ctx.font = '600 14px Roboto, system-ui, sans-serif';
   ctx.textAlign = 'left';
@@ -107,7 +109,6 @@ function romexPaint3D(canvas, labels, series, title) {
   if (maxV <= 0) maxV = 1;
   var scaleMax = maxV * 1.15;
 
-  /* Eje / rejilla */
   ctx.font = '10px Roboto, system-ui, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
@@ -124,7 +125,6 @@ function romexPaint3D(canvas, labels, series, title) {
     ctx.fillText(fmtVal(val), padL - 8, gy);
   }
 
-  /* Plano de piso sutil (profundidad) */
   var depthX = 12;
   var depthY = 9;
   ctx.fillStyle = 'rgba(176,190,197,0.12)';
@@ -143,11 +143,9 @@ function romexPaint3D(canvas, labels, series, title) {
   function drawColumn(x, yBottom, w, h, color, value) {
     if (h < 2) h = 2;
     var top = yBottom - h;
-    var front = color;
     var side = darken(color, 0.28);
     var lid = lighten(color, 0.32);
 
-    /* Sombra en el piso */
     ctx.fillStyle = 'rgba(0,0,0,0.08)';
     ctx.beginPath();
     ctx.moveTo(x + 2, yBottom);
@@ -157,7 +155,6 @@ function romexPaint3D(canvas, labels, series, title) {
     ctx.closePath();
     ctx.fill();
 
-    /* Cara lateral derecha */
     ctx.beginPath();
     ctx.moveTo(x + w, yBottom);
     ctx.lineTo(x + w + depthX, yBottom - depthY);
@@ -167,14 +164,12 @@ function romexPaint3D(canvas, labels, series, title) {
     ctx.fillStyle = side;
     ctx.fill();
 
-    /* Cara frontal con ligero degradado vertical */
     var grad = ctx.createLinearGradient(x, top, x, yBottom);
     grad.addColorStop(0, lighten(color, 0.12));
     grad.addColorStop(1, color);
     ctx.fillStyle = grad;
     ctx.fillRect(x, top, w, h);
 
-    /* Cara superior (tapa) */
     ctx.beginPath();
     ctx.moveTo(x, top);
     ctx.lineTo(x + depthX, top - depthY);
@@ -184,7 +179,6 @@ function romexPaint3D(canvas, labels, series, title) {
     ctx.fillStyle = lid;
     ctx.fill();
 
-    /* Contornos finos */
     ctx.strokeStyle = darken(color, 0.22);
     ctx.lineWidth = 0.8;
     ctx.strokeRect(x, top, w, h);
@@ -195,15 +189,17 @@ function romexPaint3D(canvas, labels, series, title) {
     ctx.lineTo(x + w, top);
     ctx.stroke();
 
-    /* Valor encima */
-    ctx.fillStyle = '#37474f';
-    ctx.font = '600 10px Roboto, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(fmtVal(value), x + w / 2 + depthX * 0.45, top - depthY - 4);
+    if (progress > 0.85) {
+      ctx.globalAlpha = Math.min(1, (progress - 0.85) / 0.15);
+      ctx.fillStyle = '#37474f';
+      ctx.font = '600 10px Roboto, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(fmtVal(value), x + w / 2 + depthX * 0.45, top - depthY - 4);
+      ctx.globalAlpha = 1;
+    }
   }
 
-  /* Columnas de atrás hacia adelante no aplica (2D iso); dibujar por categoría */
   for (var i = 0; i < nCat; i++) {
     var groupCenter = padL + i * groupW + groupW / 2;
     var totalBarsW = nSer * barW + (nSer - 1) * barGap;
@@ -211,15 +207,15 @@ function romexPaint3D(canvas, labels, series, title) {
 
     for (var s = 0; s < nSer; s++) {
       var v = (series[s].values && series[s].values[i] != null) ? +series[s].values[i] : 0;
-      var h = (v / scaleMax) * (plotH - 10);
-      if (v > 0 && h < 4) h = 4;
-      if (v === 0) h = 2;
+      var fullH = (v / scaleMax) * (plotH - 10);
+      if (v > 0 && fullH < 4) fullH = 4;
+      if (v === 0) fullH = 2;
+      var h = fullH * p;
       var x = startX + s * (barW + barGap);
       var col = (series[s].colors && series[s].colors[i]) ? series[s].colors[i] : (series[s].color || '#1976d2');
-      drawColumn(x, baseY, barW, h, col, v);
+      drawColumn(x, baseY, barW, Math.max(h, 1), col, v);
     }
 
-    /* Etiqueta categoría */
     ctx.fillStyle = '#455a64';
     ctx.font = '500 11px Roboto, system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -235,7 +231,6 @@ function romexPaint3D(canvas, labels, series, title) {
     }
   }
 
-  /* Leyenda centrada */
   var legendY = H - 26;
   ctx.font = '500 11px Roboto, system-ui, sans-serif';
   var parts = [];
@@ -260,6 +255,23 @@ function romexPaint3D(canvas, labels, series, title) {
     lx += parts[si] + 28;
   });
 
+  return true;
+}
+
+function romexAnimate3D(canvas, labels, series, title) {
+  if (!canvas) return false;
+  var animToken = ++_romexAnimId;
+  var t0 = null;
+  var duration = 650;
+
+  function frame(ts) {
+    if (animToken !== _romexAnimId) return;
+    if (t0 == null) t0 = ts;
+    var t = Math.min(1, (ts - t0) / duration);
+    romexPaint3D(canvas, labels, series, title, t);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
   return true;
 }
 
@@ -303,7 +315,7 @@ function romexDrawMicro3D(d) {
     ? 'Punto de partida · Siembra' + (bl.fechaSiembra ? ' ' + bl.fechaSiembra : '')
     : 'Siembra vs ' + mesLabel + (typeof activeYear !== 'undefined' ? ' ' + activeYear : '');
 
-  return romexPaint3D(cv, labels, series, title);
+  return romexAnimate3D(cv, labels, series, title);
 }
 
 function romexDrawFisico3D(d, fields) {
@@ -345,10 +357,9 @@ function romexDrawFisico3D(d, fields) {
     ? 'Punto de partida físicoquímico'
     : 'Siembra vs ' + mesLabel;
 
-  return romexPaint3D(cv, labels, series, title);
+  return romexAnimate3D(cv, labels, series, title);
 }
 
-/* Carga baselines (solo datos del gráfico; no altera la app) */
 (function loadBl() {
   var urls = ['data/baselines.json', (window.API_BASE || '') + '/data/baselines.json'];
   function tryNext(i) {
