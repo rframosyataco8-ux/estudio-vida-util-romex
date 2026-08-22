@@ -1,150 +1,96 @@
-# Control de Calidad Romex — Web + SQL Server
+# Control de Calidad Romex — Web + SQL
 
 Sistema profesional de **Estudio de Vida Útil / Control de Calidad**  
-**Exportadora Romex S.A.** · Planta de Cacao Chincha  
-Microbiología + Físicoquímico · HTML/CSS/JS + Chart.js + API Node.js
-
-**Versión:** 1.2.0
+**Exportadora Romex S.A.** · Planta Chincha  
+**Versión 1.3.0**
 
 ---
 
-## Arquitectura
+## Qué incluye (v1.3)
 
+- Login bcrypt + roles ADMIN / LECTOR + Recordarme
+- Microbiología y físicoquímico por producto/mes/año
+- Auto-guardado, agregar mes/producto, soft-delete
+- Selector de año · estado real · empty-state
+- **Export CSV** (Excel) · **Imprimir/PDF** (navegador)
+- **Comparar productos** (promedios)
+- **Alertas** de límites orientativos QC
+- **Auditoría** de cambios (tabla + UI)
+- **Dark mode** · PWA básica (manifest + service worker)
+- Tendencia físico con **selector de parámetro**
+- API dual: **SQL Server** (local) o **PostgreSQL** (Render)
+
+---
+
+## SSMS Express — scripts a ejecutar
+
+Tu base `RomexQC` ya existe. Ejecuta en orden lo que falte:
+
+| Script | Cuándo |
+|--------|--------|
+| `sql/00_RESET_COMPLETO.sql` | Solo si quieres borrar y recrear datos |
+| `sql/02_roles_usuarios.sql` | Si no tienes Usuarios/Sesiones |
+| `sql/03_bcrypt_passwords.sql` | Hashes bcrypt |
+| `sql/04_mejoras.sql` | PasswordHash VARCHAR + índice |
+| **`sql/05_auditoria.sql`** | **Obligatorio para historial v1.3** |
+
+```sql
+-- Mínimo ahora:
+-- 1) Abre sql/05_auditoria.sql en SSMS y F5 sobre RomexQC
 ```
-Navegador (Material Design)
-    → /api/...
-    → server/index.js (Express)
-    → SQL Server (SSMS Express)  o  PostgreSQL (opcional / Render)
-```
 
-## Requisitos
+### Usuarios
 
-- Node.js ≥ 18
-- SQL Server Express + SSMS
-- Navegador moderno
+| Usuario | Pass | Rol |
+|---------|------|-----|
+| admin | admin123 | ADMIN |
+| rodrigo | rodrigo123 | ADMIN |
+| nereyda | romex2026 | ADMIN |
+| lector | lector123 | LECTOR |
 
 ---
 
-## 1) Base de datos (SSMS Express)
-
-Tu base **RomexQC** ya está creada. Orden recomendado de scripts:
-
-| Orden | Archivo | Qué hace |
-|-------|---------|----------|
-| 1 | `sql/00_RESET_COMPLETO.sql` | **Solo si quieres recrear todo** (borra y vuelve a crear productos + datos mayo–dic 2026) |
-| 2 | `sql/02_roles_usuarios.sql` | Tablas `Usuarios` y `Sesiones` + usuarios iniciales |
-| 3 | `sql/03_bcrypt_passwords.sql` | Amplía `PasswordHash` y pone hashes bcrypt |
-| 4 | `sql/04_mejoras.sql` | PasswordHash VARCHAR(100), índice, limpia sesiones viejas |
-
-> Si ya tienes productos y datos, **no ejecutes** el `00_RESET`.  
-> Ejecuta **04_mejoras.sql** ahora (es seguro).
-
-### Usuarios por defecto
-
-| Usuario   | Contraseña  | Rol    |
-|-----------|-------------|--------|
-| admin     | admin123    | ADMIN  |
-| rodrigo   | rodrigo123  | ADMIN  |
-| nereyda   | romex2026   | ADMIN  |
-| lector    | lector123   | LECTOR |
-
-**Cambia estas contraseñas en producción.**
-
----
-
-## 2) Configurar API local
+## Arranque local
 
 ```bash
 cd server
-cp .env.example .env
-# Edita .env con tu servidor, usuario y password de SQL Server
+cp .env.example .env   # edita password SQL
 npm install
 npm start
 # http://localhost:3000
 ```
 
-Ejemplo `.env`:
+---
 
-```env
-DB_TYPE=mssql
-MSSQL_SERVER=localhost
-MSSQL_DATABASE=RomexQC
-MSSQL_USER=sa
-MSSQL_PASSWORD=TuPassword
-MSSQL_ENCRYPT=false
-PORT=3000
-NODE_ENV=development
+## PostgreSQL (Render)
+
+```
+sql/postgres/01_schema.sql
+sql/postgres/02_seed.sql
 ```
 
-Si usas Live Server (puerto 5500), el frontend apunta solo a `http://localhost:3000`.
+Env: `DB_TYPE=postgres`, `DATABASE_URL=...`, `NODE_ENV=production`
 
 ---
 
-## 3) Funcionalidades v1.2
+## Toolbar UI
 
-- Login con bcrypt (+ migración automática desde SHA-256)
-- **Recordarme** correcto (localStorage vs sessionStorage)
-- Roles **ADMIN** / **LECTOR**
-- Auto-guardado de resultados (ADMIN)
-- Agregar mes y producto (ADMIN)
-- Soft-delete de producto (`DELETE /api/productos/:codigo`)
-- Selector de **año** (2025 / 2026 / 2027)
-- Estado real (LIBERADO / CONFORME / etc.) en interpretación y badge
-- Validación de rangos en micro y físico
-- Rate-limit de login (12 intentos / 15 min)
-- CORS configurable (`CORS_ORIGINS`)
-- Limpieza de sesiones expiradas al login
-- Analista = usuario logueado al crear mes
+- 📥 Export CSV  
+- ⇄ Comparar productos  
+- 🌙 Tema oscuro/claro  
+- 🖨 Imprimir (PDF del navegador)  
+- Historial (ADMIN, drawer)
 
 ---
 
-## 4) API principal
+## API nueva v1.3
 
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| POST | `/api/login` | — | Login |
-| POST | `/api/logout` | Bearer | Cerrar sesión |
-| GET | `/api/me` | Bearer | Usuario actual |
-| GET | `/api/health` | Bearer* | Health + tipo DB |
-| GET | `/api/productos` | Bearer | Listar productos |
-| POST | `/api/productos` | ADMIN | Crear producto |
-| DELETE | `/api/productos/:codigo` | ADMIN | Desactivar producto |
-| GET | `/api/productos/:codigo/micro?anio=` | Bearer | Resultados micro |
-| GET | `/api/productos/:codigo/fisico?anio=` | Bearer | Resultados físico |
-| PUT | `/api/productos/:codigo/micro/:mes?anio=` | ADMIN | Actualizar micro |
-| PUT | `/api/productos/:codigo/fisico/:mes?anio=` | ADMIN | Actualizar físico |
-| POST | `/api/productos/:codigo/mes` | ADMIN | Agregar mes |
-
-\* `/api/health` en esta versión requiere estar autenticado si se llama desde `api()` del front; el endpoint en sí no exige auth en el servidor.
+| Ruta | Descripción |
+|------|-------------|
+| `GET /api/limits` | Límites QC |
+| `GET /api/auditoria?limit=` | Historial (ADMIN) |
+| micro/fisico responses | incluyen `alertas[]` |
 
 ---
 
-## 5) Productos (seed)
-
-- Torta Natural de Cacao · 44260304  
-- Torta Alcalina de Cacao · 13260318  
-- Cocoa Natural · 11260513  
-- Cocoa Alcalina · 07260324  
-- Licor de Cacao · 260516  
-- Manteca de Cacao · 19260321  
-
-Analista de referencia: **Nereyda Huachua Flores**
-
----
-
-## 6) Deploy (Render + PostgreSQL) — opcional
-
-Render no tiene SQL Server. Usa Postgres:
-
-1. Crea PostgreSQL y copia `DATABASE_URL`
-2. Adapta el esquema (tablas equivalentes en snake_case)
-3. Web Service: build `cd server && npm install`, start `cd server && node index.js`
-4. Env: `DATABASE_URL`, `DB_TYPE=postgres`, `NODE_ENV=production`
-
-*(Scripts Postgres completos pendientes; el backend ya soporta `DB_TYPE=postgres`.)*
-
----
-
-## Diseño
-
-Material Design claro (Roboto, cards, chips, tabs, drawer colapsable, splash animado).
+Analista de referencia: Nereyda Huachua Flores · Código doc I-EVUP-R-309

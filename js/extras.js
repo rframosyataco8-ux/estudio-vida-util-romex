@@ -1,4 +1,4 @@
-/* Romex QC v1.3 — export, comparar, auditoría, dark mode, tendencia param */
+/* Romex QC v1.3 — export, comparar, auditoría, dark mode, alertas, tendencia */
 'use strict';
 
 (function () {
@@ -16,6 +16,113 @@
     localStorage.setItem('romex_theme', next);
     applyTheme();
   };
+
+  function injectAlerts(mode) {
+    var content = $('content');
+    if (!content) return;
+    var d = typeof rowFor === 'function' ? rowFor(mode) : null;
+    if (!d || !d.alertas || !d.alertas.length) return;
+    if (content.querySelector('.alert-banner')) return;
+    var msgs = d.alertas.map(function (a) {
+      return a.label + ': ' + a.valor + (a.tipo === 'max' ? ' > máx ' : ' < mín ') + a.limite;
+    }).join(' · ');
+    var banner = document.createElement('div');
+    banner.className = 'alert-banner';
+    banner.innerHTML = '<strong>⚠ Valores fuera de límite orientativo</strong>' + msgs;
+    content.insertBefore(banner, content.firstChild);
+  }
+
+  function injectTrendSelect() {
+    var titles = document.querySelectorAll('.card-title');
+    var trendTitle = null;
+    titles.forEach(function (t) {
+      if (t.textContent.indexOf('Tendencia') >= 0) trendTitle = t;
+    });
+    if (!trendTitle || trendTitle.querySelector('#trendParamSel')) return;
+    trendTitle.classList.add('card-title-trend');
+    var sel = document.createElement('select');
+    sel.id = 'trendParamSel';
+    sel.className = 'year-select';
+    sel.style.marginLeft = 'auto';
+    sel.style.fontSize = '11px';
+    ['humedad', 'ph', 'ceniza', 'grasa', 'fineza', 'acidez'].forEach(function (k) {
+      var o = document.createElement('option');
+      o.value = k;
+      o.textContent = (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[k]) ? FISICO_LABELS[k] : k;
+      if (k === (window.trendParam || 'humedad')) o.selected = true;
+      sel.appendChild(o);
+    });
+    trendTitle.style.display = 'flex';
+    trendTitle.style.alignItems = 'center';
+    trendTitle.appendChild(sel);
+  }
+
+  window.trendParam = 'humedad';
+
+  window.drawFisicoTrendParam = function () {
+    var cv = document.getElementById('cTrend');
+    if (!cv || typeof Chart === 'undefined' || typeof fisicoRows === 'undefined') return;
+    if (typeof chartTrend !== 'undefined' && chartTrend) {
+      try { chartTrend.destroy(); } catch (e) {}
+      chartTrend = null;
+    }
+    var key = window.trendParam || 'humedad';
+    var label = (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[key]) ? FISICO_LABELS[key] : key;
+    var color = (typeof COLORS !== 'undefined' && COLORS[key]) ? COLORS[key] : '#1565c0';
+    chartTrend = new Chart(cv, {
+      type: 'line',
+      data: {
+        labels: fisicoRows.map(function (r) { return MONTH_NAMES[r.mes]; }),
+        datasets: [{
+          data: fisicoRows.map(function (r) { return r[key] != null && r[key] !== '' ? +r[key] : null; }),
+          borderColor: color,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: color,
+            anchor: 'end',
+            align: 'top',
+            formatter: function (v) { return v == null ? '' : (+v).toFixed(2); }
+          }
+        }
+      }
+    });
+  };
+
+  /* Envolver renders cuando existan */
+  function wrapRenders() {
+    if (typeof renderMicro === 'function' && !renderMicro._romexWrapped) {
+      var om = renderMicro;
+      renderMicro = function (p) {
+        om(p);
+        setTimeout(function () { injectAlerts('micro'); }, 30);
+      };
+      renderMicro._romexWrapped = true;
+    }
+    if (typeof renderFisico === 'function' && !renderFisico._romexWrapped) {
+      var of = renderFisico;
+      renderFisico = function (p) {
+        of(p);
+        setTimeout(function () {
+          injectAlerts('fisico');
+          injectTrendSelect();
+          window.drawFisicoTrendParam();
+        }, 40);
+      };
+      renderFisico._romexWrapped = true;
+    }
+  }
+  wrapRenders();
+  setTimeout(wrapRenders, 500);
+  setTimeout(wrapRenders, 1500);
 
   window.exportCsv = function () {
     if (typeof microRows === 'undefined' || typeof activeCodigo === 'undefined') {
@@ -43,13 +150,13 @@
     a.download = 'romex_' + activeCodigo + '_' + mode + '_' + (typeof activeYear !== 'undefined' ? activeYear : 2026) + '.csv';
     a.click();
     URL.revokeObjectURL(a.href);
-    if (typeof snack === 'function') snack('CSV descargado');
+    if (typeof snack === 'function') snack('CSV descargado (ábrelo en Excel)');
   };
 
   window.openCompareModal = function () {
     var selA = $('cmpA');
     var selB = $('cmpB');
-    if (!selA || !products) return;
+    if (!selA || typeof products === 'undefined') return;
     selA.innerHTML = products.map(function (p) {
       return '<option value="' + p.codigo + '">' + p.nombre + '</option>';
     }).join('');
@@ -97,7 +204,7 @@
     try {
       var rows = await api('/auditoria?limit=80');
       if (!rows.length) {
-        box.innerHTML = '<p>Sin registros de auditoría (ejecuta sql/05_auditoria.sql).</p>';
+        box.innerHTML = '<p>Sin registros. Ejecuta <code>sql/05_auditoria.sql</code> en SSMS y realiza cambios.</p>';
         return;
       }
       var html = '<table class="audit-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Código</th><th>Mes</th></tr></thead><tbody>';
@@ -110,55 +217,8 @@
       html += '</tbody></table>';
       box.innerHTML = html;
     } catch (e) {
-      box.innerHTML = '<p>' + e.message + '</p>';
+      box.innerHTML = '<p>' + e.message + '</p><p>¿Ejecutaste sql/05_auditoria.sql?</p>';
     }
-  };
-
-  /* Tendencia físico: parámetro seleccionable */
-  var origDrawHum = typeof drawHumTrend === 'function' ? drawHumTrend : null;
-  window.trendParam = 'humedad';
-
-  window.drawFisicoTrendParam = function () {
-    var cv = document.getElementById('cTrend');
-    if (!cv || typeof Chart === 'undefined') return;
-    if (typeof destroyCharts === 'function') {
-      /* solo destruir trend manteniendo main si es posible */
-    }
-    if (typeof chartTrend !== 'undefined' && chartTrend) {
-      try { chartTrend.destroy(); } catch (e) {}
-      chartTrend = null;
-    }
-    var key = window.trendParam || 'humedad';
-    var label = (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[key]) ? FISICO_LABELS[key] : key;
-    var color = (typeof COLORS !== 'undefined' && COLORS[key]) ? COLORS[key] : '#1565c0';
-    chartTrend = new Chart(cv, {
-      type: 'line',
-      data: {
-        labels: fisicoRows.map(function (r) { return MONTH_NAMES[r.mes]; }),
-        datasets: [{
-          data: fisicoRows.map(function (r) { return r[key] != null ? +r[key] : null; }),
-          borderColor: color,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          datalabels: {
-            color: color,
-            anchor: 'end',
-            align: 'top',
-            formatter: function (v) { return v == null ? '' : (+v).toFixed(2); }
-          }
-        }
-      }
-    });
-    var title = document.querySelector('.card-title-trend');
-    if (title) title.textContent = 'Tendencia · ' + label;
   };
 
   document.addEventListener('click', function (e) {
@@ -176,8 +236,7 @@
     }
   });
 
-  /* Registrar SW */
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(function () {});
+    navigator.serviceWorker.register('sw.js').catch(function () {});
   }
 })();
