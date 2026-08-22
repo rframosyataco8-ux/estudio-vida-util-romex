@@ -1,4 +1,4 @@
-/* Romex QC v1.3 — export, comparar, auditoría, dark mode, alertas, tendencia */
+/* Romex QC v1.4.1 — export, comparar, auditoría, dark mode, eliminar mes */
 'use strict';
 
 (function () {
@@ -16,113 +16,6 @@
     localStorage.setItem('romex_theme', next);
     applyTheme();
   };
-
-  function injectAlerts(mode) {
-    var content = $('content');
-    if (!content) return;
-    var d = typeof rowFor === 'function' ? rowFor(mode) : null;
-    if (!d || !d.alertas || !d.alertas.length) return;
-    if (content.querySelector('.alert-banner')) return;
-    var msgs = d.alertas.map(function (a) {
-      return a.label + ': ' + a.valor + (a.tipo === 'max' ? ' > máx ' : ' < mín ') + a.limite;
-    }).join(' · ');
-    var banner = document.createElement('div');
-    banner.className = 'alert-banner';
-    banner.innerHTML = '<strong>⚠ Valores fuera de límite orientativo</strong>' + msgs;
-    content.insertBefore(banner, content.firstChild);
-  }
-
-  function injectTrendSelect() {
-    var titles = document.querySelectorAll('.card-title');
-    var trendTitle = null;
-    titles.forEach(function (t) {
-      if (t.textContent.indexOf('Tendencia') >= 0) trendTitle = t;
-    });
-    if (!trendTitle || trendTitle.querySelector('#trendParamSel')) return;
-    trendTitle.classList.add('card-title-trend');
-    var sel = document.createElement('select');
-    sel.id = 'trendParamSel';
-    sel.className = 'year-select';
-    sel.style.marginLeft = 'auto';
-    sel.style.fontSize = '11px';
-    ['humedad', 'ph', 'ceniza', 'grasa', 'fineza', 'acidez'].forEach(function (k) {
-      var o = document.createElement('option');
-      o.value = k;
-      o.textContent = (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[k]) ? FISICO_LABELS[k] : k;
-      if (k === (window.trendParam || 'humedad')) o.selected = true;
-      sel.appendChild(o);
-    });
-    trendTitle.style.display = 'flex';
-    trendTitle.style.alignItems = 'center';
-    trendTitle.appendChild(sel);
-  }
-
-  window.trendParam = 'humedad';
-
-  window.drawFisicoTrendParam = function () {
-    var cv = document.getElementById('cTrend');
-    if (!cv || typeof Chart === 'undefined' || typeof fisicoRows === 'undefined') return;
-    if (typeof chartTrend !== 'undefined' && chartTrend) {
-      try { chartTrend.destroy(); } catch (e) {}
-      chartTrend = null;
-    }
-    var key = window.trendParam || 'humedad';
-    var label = (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[key]) ? FISICO_LABELS[key] : key;
-    var color = (typeof COLORS !== 'undefined' && COLORS[key]) ? COLORS[key] : '#1565c0';
-    chartTrend = new Chart(cv, {
-      type: 'line',
-      data: {
-        labels: fisicoRows.map(function (r) { return MONTH_NAMES[r.mes]; }),
-        datasets: [{
-          data: fisicoRows.map(function (r) { return r[key] != null && r[key] !== '' ? +r[key] : null; }),
-          borderColor: color,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          datalabels: {
-            color: color,
-            anchor: 'end',
-            align: 'top',
-            formatter: function (v) { return v == null ? '' : (+v).toFixed(2); }
-          }
-        }
-      }
-    });
-  };
-
-  /* Envolver renders cuando existan */
-  function wrapRenders() {
-    if (typeof renderMicro === 'function' && !renderMicro._romexWrapped) {
-      var om = renderMicro;
-      renderMicro = function (p) {
-        om(p);
-        setTimeout(function () { injectAlerts('micro'); }, 30);
-      };
-      renderMicro._romexWrapped = true;
-    }
-    if (typeof renderFisico === 'function' && !renderFisico._romexWrapped) {
-      var of = renderFisico;
-      renderFisico = function (p) {
-        of(p);
-        setTimeout(function () {
-          injectAlerts('fisico');
-          injectTrendSelect();
-          window.drawFisicoTrendParam();
-        }, 40);
-      };
-      renderFisico._romexWrapped = true;
-    }
-  }
-  wrapRenders();
-  setTimeout(wrapRenders, 500);
-  setTimeout(wrapRenders, 1500);
 
   window.exportCsv = function () {
     if (typeof microRows === 'undefined' || typeof activeCodigo === 'undefined') {
@@ -150,7 +43,7 @@
     a.download = 'romex_' + activeCodigo + '_' + mode + '_' + (typeof activeYear !== 'undefined' ? activeYear : 2026) + '.csv';
     a.click();
     URL.revokeObjectURL(a.href);
-    if (typeof snack === 'function') snack('CSV descargado (ábrelo en Excel)');
+    if (typeof snack === 'function') snack('CSV descargado');
   };
 
   window.openCompareModal = function () {
@@ -204,7 +97,7 @@
     try {
       var rows = await api('/auditoria?limit=80');
       if (!rows.length) {
-        box.innerHTML = '<p>Sin registros. Ejecuta <code>sql/05_auditoria.sql</code> en SSMS y realiza cambios.</p>';
+        box.innerHTML = '<p>Sin registros. Ejecuta el script SQL de auditoría si aún no.</p>';
         return;
       }
       var html = '<table class="audit-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Código</th><th>Mes</th></tr></thead><tbody>';
@@ -217,9 +110,66 @@
       html += '</tbody></table>';
       box.innerHTML = html;
     } catch (e) {
-      box.innerHTML = '<p>' + e.message + '</p><p>¿Ejecutaste sql/05_auditoria.sql?</p>';
+      box.innerHTML = '<p>' + e.message + '</p>';
     }
   };
+
+  /** Eliminar mes activo (ADMIN) */
+  window.deleteActiveMonth = async function () {
+    if (typeof isAdmin !== 'undefined' && !isAdmin) {
+      if (typeof snack === 'function') snack('Solo ADMIN puede eliminar');
+      return;
+    }
+    if (!activeCodigo || !activeMonth) return;
+    var nombre = (MONTH_NAMES && MONTH_NAMES[activeMonth]) || activeMonth;
+    if (!confirm('¿Eliminar ' + nombre + ' ' + activeYear + ' de este producto?\nSe borrarán microbiología y físicoquímico de ese mes.')) {
+      return;
+    }
+    try {
+      await api('/productos/' + activeCodigo + '/mes/' + activeMonth + '?anio=' + activeYear, {
+        method: 'DELETE'
+      });
+      if (typeof snack === 'function') snack('Mes eliminado');
+      if (typeof loadAndShow === 'function') await loadAndShow();
+    } catch (e) {
+      if (typeof snack === 'function') snack(e.message);
+      else alert(e.message);
+    }
+  };
+
+  function injectDeleteMonthBtn() {
+    var tabs = document.getElementById('monthTabs');
+    if (!tabs) return;
+    if (tabs.querySelector('#deleteMonthBtn')) return;
+    if (typeof isAdmin !== 'undefined' && !isAdmin) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'deleteMonthBtn';
+    btn.className = 'tab admin-only';
+    btn.title = 'Eliminar mes activo';
+    btn.style.cssText = 'color:#c62828;margin-left:auto;border-bottom-color:transparent';
+    btn.innerHTML = '<span class="material-icons-outlined" style="font-size:18px;vertical-align:middle">delete</span> Eliminar mes';
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      window.deleteActiveMonth();
+    });
+    tabs.appendChild(btn);
+  }
+
+  function injectAlerts(mode) {
+    var content = $('content');
+    if (!content) return;
+    var d = typeof rowFor === 'function' ? rowFor(mode) : null;
+    if (!d || !d.alertas || !d.alertas.length) return;
+    if (content.querySelector('.alert-banner')) return;
+    var msgs = d.alertas.map(function (a) {
+      return a.label + ': ' + a.valor + (a.tipo === 'max' ? ' > máx ' : ' < mín ') + a.limite;
+    }).join(' · ');
+    var banner = document.createElement('div');
+    banner.className = 'alert-banner';
+    banner.innerHTML = '<strong>⚠ Valores fuera de límite orientativo</strong>' + msgs;
+    content.insertBefore(banner, content.firstChild);
+  }
 
   document.addEventListener('click', function (e) {
     if (e.target.closest('#themeBtn')) { window.toggleRomexTheme(); return; }
@@ -232,9 +182,17 @@
   document.addEventListener('change', function (e) {
     if (e.target && e.target.id === 'trendParamSel') {
       window.trendParam = e.target.value;
-      window.drawFisicoTrendParam();
+      if (typeof window.drawFisicoTrendParam === 'function') window.drawFisicoTrendParam();
     }
   });
+
+  /* Re-inyectar botón eliminar tras cada render de tabs */
+  var obs = new MutationObserver(function () {
+    injectDeleteMonthBtn();
+  });
+  var tabsEl = document.getElementById('monthTabs');
+  if (tabsEl) obs.observe(tabsEl, { childList: true });
+  setInterval(injectDeleteMonthBtn, 2000);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
