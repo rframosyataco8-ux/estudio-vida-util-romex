@@ -1,0 +1,43 @@
+/* Dark mode — se activa con html[data-theme=dark] */
+html[data-theme="dark"] {
+  --md-primary: #90caf9;
+  --md-primary-dark: #64b5f6;
+  --md-primary-container: #1e3a5f;
+  --md-surface: #0f1419;
+  --md-surface-1: #1a2332;
+  --md-surface-2: #243044;
+  --md-outline: #3a4555;
+  --md-text: #e8eef4;
+  --md-text-sec: #9aabbc;
+  --md-success: #66bb6a;
+  --md-success-bg: #1b3d24;
+}
+html[data-theme="dark"] body { background: var(--md-surface); color: var(--md-text); }
+html[data-theme="dark"] .drawer,
+html[data-theme="dark"] .app-bar,
+html[data-theme="dark"] .tabs,
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .modal { background: var(--md-surface-1); }
+html[data-theme="dark"] .year-select,
+html[data-theme="dark"] .form-row input,
+html[data-theme="dark"] .form-row select,
+html[data-theme="dark"] .form-grid input { background: var(--md-surface-2); color: var(--md-text); border-color: var(--md-outline); }
+html[data-theme="dark"] .seg.active { background: var(--md-surface-2); }
+html[data-theme="dark"] td input { color: var(--md-text); }
+html[data-theme="dark"] .alert-banner { background: #3e2723; color: #ffccbc; border-color: #bf360c; }
+
+.alert-banner {
+  grid-column: 1 / -1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.alert-banner strong { display: block; margin-bottom: 4px; }
+.audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.audit-table th, .audit-table td { padding: 8px 6px; border-bottom: 1px solid var(--md-outline); text-align: left; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
