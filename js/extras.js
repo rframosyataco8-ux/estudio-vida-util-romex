@@ -1,4 +1,4 @@
-/* Romex QC v1.4.1 — export, comparar, auditoría, dark mode, eliminar mes */
+/* Romex QC v1.5 — export, comparar, auditoría, dark mode, eliminar mes, SW update */
 'use strict';
 
 (function () {
@@ -114,7 +114,6 @@
     }
   };
 
-  /** Eliminar mes activo (ADMIN) */
   window.deleteActiveMonth = async function () {
     if (typeof isAdmin !== 'undefined' && !isAdmin) {
       if (typeof snack === 'function') snack('Solo ADMIN puede eliminar');
@@ -156,21 +155,6 @@
     tabs.appendChild(btn);
   }
 
-  function injectAlerts(mode) {
-    var content = $('content');
-    if (!content) return;
-    var d = typeof rowFor === 'function' ? rowFor(mode) : null;
-    if (!d || !d.alertas || !d.alertas.length) return;
-    if (content.querySelector('.alert-banner')) return;
-    var msgs = d.alertas.map(function (a) {
-      return a.label + ': ' + a.valor + (a.tipo === 'max' ? ' > máx ' : ' < mín ') + a.limite;
-    }).join(' · ');
-    var banner = document.createElement('div');
-    banner.className = 'alert-banner';
-    banner.innerHTML = '<strong>⚠ Valores fuera de límite orientativo</strong>' + msgs;
-    content.insertBefore(banner, content.firstChild);
-  }
-
   document.addEventListener('click', function (e) {
     if (e.target.closest('#themeBtn')) { window.toggleRomexTheme(); return; }
     if (e.target.closest('#exportBtn')) { window.exportCsv(); return; }
@@ -186,7 +170,6 @@
     }
   });
 
-  /* Re-inyectar botón eliminar tras cada render de tabs */
   var obs = new MutationObserver(function () {
     injectDeleteMonthBtn();
   });
@@ -194,7 +177,35 @@
   if (tabsEl) obs.observe(tabsEl, { childList: true });
   setInterval(injectDeleteMonthBtn, 2000);
 
+  /* Service worker: forzar actualización y limpiar cachés viejos */
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      reg.update();
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      reg.addEventListener('updatefound', function () {
+        var nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', function () {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            /* Nueva versión lista — recargar una vez */
+            if (!sessionStorage.getItem('romex_sw_reloaded')) {
+              sessionStorage.setItem('romex_sw_reloaded', '1');
+              window.location.reload();
+            }
+          }
+        });
+      });
+    }).catch(function () {});
+
+    /* Una vez: borrar caches antiguos del SW v13 */
+    if (window.caches) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (k) {
+          if (k.indexOf('romex-qc-') === 0 && k !== 'romex-qc-v15') {
+            caches.delete(k);
+          }
+        });
+      });
+    }
   }
 })();
