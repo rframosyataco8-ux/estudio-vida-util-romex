@@ -1,0 +1,14 @@
+{
+  "name": "estudio-vida-util-romex",
+  "version": "1.5.3",
+  "private": true,
+  "description": "Romex QC — frontend + API",
+  "scripts": {
+    "start": "node server/index.js",
+    "install:server": "npm install --prefix server",
+    "postinstall": "npm install --prefix server"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

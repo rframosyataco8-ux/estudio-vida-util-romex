@@ -1,46 +1,56 @@
-# Control de Calidad Romex — Web + SQL
+# Control de Calidad Romex — Estudio de Vida Útil
 
-Sistema profesional de **Estudio de Vida Útil / Control de Calidad**  
-**Exportadora Romex S.A.** · Planta Chincha  
-**Versión 1.5.0**
+**Exportadora Romex S.A.** · Planta Chincha · **v1.5.3**
 
----
-
-## Qué incluye (v1.5)
-
-- Login bcrypt + roles ADMIN / LECTOR + Recordarme
-- Microbiología y físicoquímico por producto/mes/año
-- Auto-guardado, agregar mes/producto, soft-delete
-- Selector de año · estado real · empty-state
-- **Export CSV** (Excel) · **Imprimir/PDF** (navegador)
-- **Comparar productos** (promedios)
-- **Alertas** de límites orientativos QC
-- **Auditoría** de cambios (tabla + UI)
-- **Dark mode** · PWA básica (manifest + service worker)
-- **UI v1.5** — animaciones fluidas, skeletons, transiciones de contenido, login glassmorphism, micro-interacciones
-- Tendencia físico con **selector de parámetro**
-- API dual: **SQL Server** (local) o **PostgreSQL** (Render)
+Web app + API (Node/Express) · SQL Server (local) o **PostgreSQL (Render)**.
 
 ---
 
-## SSMS Express — scripts a ejecutar
+## Publicar en Render (producción)
 
-Tu base `RomexQC` ya existe. Ejecuta en orden lo que falte:
+### 1. Base de datos PostgreSQL en Render
 
-| Script | Cuándo |
-|--------|--------|
-| `sql/00_RESET_COMPLETO.sql` | Solo si quieres borrar y recrear datos |
-| `sql/02_roles_usuarios.sql` | Si no tienes Usuarios/Sesiones |
-| `sql/03_bcrypt_passwords.sql` | Hashes bcrypt |
-| `sql/04_mejoras.sql` | PasswordHash VARCHAR + índice |
-| **`sql/05_auditoria.sql`** | **Obligatorio para historial v1.3** |
+1. [Render Dashboard](https://dashboard.render.com) → **New** → **PostgreSQL**
+2. Name: `romex-qc-db` · Plan **Free**
+3. Copia la **Internal Database URL** (o External si hace falta)
 
-```sql
--- Mínimo ahora:
--- 1) Abre sql/05_auditoria.sql en SSMS y F5 sobre RomexQC
+### 2. Ejecutar el esquema SQL
+
+En la consola de Postgres de Render (o con `psql` y la External URL):
+
+```bash
+# Desde tu PC (con la External Database URL):
+psql "TU_EXTERNAL_DATABASE_URL" -f sql/postgres/01_schema.sql
+psql "TU_EXTERNAL_DATABASE_URL" -f sql/postgres/02_seed.sql
 ```
 
-### Usuarios
+O pega el contenido de esos archivos en el **Shell** / query tool de Render.
+
+### 3. Web Service
+
+**Opción A — Blueprint (recomendado)**  
+- New → **Blueprint** → conecta el repo `estudio-vida-util-romex`  
+- Usa el `render.yaml` del repo (crea web + DB)
+
+**Opción B — Manual**
+
+| Campo | Valor |
+|--------|--------|
+| Root Directory | *(vacío, raíz del repo)* |
+| Runtime | Node |
+| Build Command | `npm install --prefix server` |
+| Start Command | `node server/index.js` |
+| Health Check | `/api/health` |
+
+**Environment variables**
+
+| Key | Value |
+|-----|--------|
+| `NODE_ENV` | `production` |
+| `DB_TYPE` | `postgres` |
+| `DATABASE_URL` | *Link del Postgres* (o pega la URL) |
+
+### 4. Usuarios iniciales (tras el seed)
 
 | Usuario | Pass | Rol |
 |---------|------|-----|
@@ -49,49 +59,54 @@ Tu base `RomexQC` ya existe. Ejecuta en orden lo que falte:
 | nereyda | romex2026 | ADMIN |
 | lector | lector123 | LECTOR |
 
+**Cambia las contraseñas en producción.**
+
+### 5. URL
+
+Tras el deploy: `https://romex-qc-xxxx.onrender.com`  
+Login en esa misma URL (API y frontend juntos).
+
+> Plan free: el servicio se duerme tras inactividad; la primera carga puede tardar ~30–60 s.
+
 ---
 
-## Arranque local
+## Arranque local (SQL Server)
 
 ```bash
 cd server
-cp .env.example .env   # edita password SQL
+cp .env.example .env
+# Edita MSSQL_PASSWORD
 npm install
 npm start
 # http://localhost:3000
 ```
 
----
-
-## PostgreSQL (Render)
-
-```
-sql/postgres/01_schema.sql
-sql/postgres/02_seed.sql
-```
-
-Env: `DB_TYPE=postgres`, `DATABASE_URL=...`, `NODE_ENV=production`
+Scripts SSMS: carpeta `sql/` (ver `sql/TODO_EN_UNO_SSMS.sql`).
 
 ---
 
-## Toolbar UI
+## Qué incluye v1.5.3
 
-- 📥 Export CSV  
-- ⇄ Comparar productos  
-- 🌙 Tema oscuro/claro  
-- 🖨 Imprimir (PDF del navegador)  
-- Historial (ADMIN, drawer)
+- Login bcrypt · roles ADMIN / LECTOR  
+- Microbiología y físicoquímico por producto / mes / año  
+- **Siembra / punto de partida** según lote (`2603` → marzo, etc.)  
+- Gráfico 3D siembra vs mes · tendencia con línea de siembra  
+- Export CSV · comparar · auditoría · dark mode  
+- Auto-guardado · agregar mes/producto  
 
 ---
 
-## API nueva v1.3
+## API
 
 | Ruta | Descripción |
 |------|-------------|
-| `GET /api/limits` | Límites QC |
-| `GET /api/auditoria?limit=` | Historial (ADMIN) |
-| micro/fisico responses | incluyen `alertas[]` |
+| `GET /api/health` | Estado + versión + tipo DB |
+| `POST /api/login` | Login |
+| `GET /api/productos` | Listado |
+| `GET /api/productos/:codigo/micro?anio=` | Microbiología |
+| `GET /api/productos/:codigo/fisico?anio=` | Físicoquímico |
+| `GET /api/auditoria` | Historial (ADMIN) |
 
 ---
 
-Analista de referencia: Nereyda Huachua Flores · Código doc I-EVUP-R-309
+Analista de referencia: Nereyda Huachua Flores · Doc I-EVUP-R-309
