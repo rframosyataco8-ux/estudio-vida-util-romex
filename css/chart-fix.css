@@ -1,4 +1,4 @@
-/* Layout del gráfico 3D rediseñado */
+/* Layout del gráfico 3D + modo oscuro */
 
 .chart-box {
   position: relative;
@@ -46,6 +46,22 @@
   padding: 0 6px;
   font-weight: 600;
   color: #0d47a1;
+}
+
+/* —— Modo oscuro —— */
+html[data-theme="dark"] .chart-box {
+  background: linear-gradient(180deg, #1a1d24 0%, #12141a 50%);
+  border-color: rgba(144, 164, 174, 0.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="dark"] .chart-box.sm {
+  background: #1a1d24;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .content > .card:has(#cMain) .card-title {
+  color: #90caf9;
 }
 
 @media (max-width: 960px) {
