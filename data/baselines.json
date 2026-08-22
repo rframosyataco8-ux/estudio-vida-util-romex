@@ -1,0 +1,53 @@
+{
+  "_comment": "Punto de partida = promedio de siembra (Excel RESULTADOS NEREYDA). Mes inicio desde lote (YYMM embebido, ej. 2603=mar 2026). Fecha siembra = ultima fecha de analisis del bloque.",
+  "products": {
+    "torta_natural": {
+      "lote": "44260304",
+      "anioInicio": 2026,
+      "mesInicio": 3,
+      "fechaSiembra": "2026-03-06",
+      "micro": { "rtamv": 863, "mohos": 11, "coliformes": 0, "ecoli": 0, "enterobacterias": 0, "levaduras": 0, "saureus": 0 },
+      "fisico": { "humedad": 2.22, "ph": 5.4, "ceniza": 8.3, "grasa": 12.11 }
+    },
+    "torta_alcalina": {
+      "lote": "13260318",
+      "anioInicio": 2026,
+      "mesInicio": 3,
+      "fechaSiembra": "2026-03-28",
+      "micro": { "rtamv": 40, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterobacterias": 0, "levaduras": 0, "saureus": 0 },
+      "fisico": { "humedad": 3.54, "ph": 6.81, "ceniza": 11.6, "grasa": 11.68 }
+    },
+    "cocoa_natural": {
+      "lote": "11260513",
+      "anioInicio": 2026,
+      "mesInicio": 5,
+      "fechaSiembra": "2026-05-22",
+      "micro": { "rtamv": 1238, "mohos": 15, "coliformes": 0, "ecoli": 0, "enterobacterias": 0, "levaduras": 0, "saureus": 0 },
+      "fisico": { "humedad": 2.49, "ph": 5.39, "ceniza": 8.2, "grasa": 11.8, "fineza": 99.49 }
+    },
+    "cocoa_alcalina": {
+      "lote": "07260324",
+      "anioInicio": 2026,
+      "mesInicio": 3,
+      "fechaSiembra": "2026-04-02",
+      "micro": { "rtamv": 1250, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterobacterias": 0, "levaduras": 0, "saureus": 0 },
+      "fisico": { "humedad": 2.76, "ph": 6.87, "ceniza": 10.3, "grasa": 11.62, "fineza": 98.51 }
+    },
+    "licor": {
+      "lote": "260516",
+      "anioInicio": 2026,
+      "mesInicio": 5,
+      "fechaSiembra": "2026-05-18",
+      "micro": { "rtamv": 300, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterobacterias": 0, "levaduras": 0, "saureus": 0 },
+      "fisico": { "humedad": 0.55, "ph": 5.42, "ceniza": 3.9, "grasa": 48.65, "fineza": 99.74, "acidez": 2.1 }
+    },
+    "manteca": {
+      "lote": "19260321",
+      "anioInicio": 2026,
+      "mesInicio": 3,
+      "fechaSiembra": "2026-03-21",
+      "micro": { "rtamv": 50, "mohos": 0, "coliformes": 0, "ecoli": 0, "enterobacterias": 0, "levaduras": 0, "saureus": 0 },
+      "fisico": { "humedad": 0.02, "acidez": 1.64 }
+    }
+  }
+}
