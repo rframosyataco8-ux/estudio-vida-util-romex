@@ -1,11 +1,15 @@
-/* Romex QC v1.4.1 — punto de partida + barras estilo 3D + tendencia dual */
+/* Romex QC — punto de partida + columnas 3D (Highcharts) + tendencia dual */
 'use strict';
 
 var ROMEX_BASELINES = null;
-var BASELINE_COLOR = 'rgba(120,144,156,0.85)';
+var BASELINE_COLOR = '#90a4ae';
 var MONTH_COLOR_MICRO = {
   rtamv: '#1565c0', mohos: '#ef6c00', coliformes: '#2e7d32', ecoli: '#43a047',
   enterobacterias: '#7b1fa2', levaduras: '#c2185b', saureus: '#c62828'
+};
+var FISICO_COLORS = {
+  humedad: '#0288d1', ph: '#7b1fa2', ceniza: '#5d4037', grasa: '#f9a825',
+  fineza: '#00897b', acidez: '#c62828'
 };
 
 function parseLoteMesAnio(lote) {
@@ -25,15 +29,10 @@ async function loadBaselines() {
     for (var i = 0; i < urls.length; i++) {
       try {
         var r = await fetch(urls[i]);
-        if (r.ok) {
-          ROMEX_BASELINES = await r.json();
-          break;
-        }
-      } catch (e1) { /* next */ }
+        if (r.ok) { ROMEX_BASELINES = await r.json(); break; }
+      } catch (e1) {}
     }
-  } catch (e) {
-    console.warn('baselines', e);
-  }
+  } catch (e) { console.warn('baselines', e); }
   if (!ROMEX_BASELINES) ROMEX_BASELINES = { products: {} };
   return ROMEX_BASELINES;
 }
@@ -50,130 +49,241 @@ function getBaseline(codigo, lote) {
 }
 
 function isStartMonth(bl) {
-  return activeYear === bl.anioInicio && activeMonth === bl.mesInicio;
+  return typeof activeYear !== 'undefined' && typeof activeMonth !== 'undefined' &&
+    activeYear === bl.anioInicio && activeMonth === bl.mesInicio;
 }
 
-/** Gradiente para efecto 3D en barras */
-function barGradient(ctx, color) {
-  var chart = ctx.chart;
-  var area = chart.chartArea;
-  if (!area) return color;
-  var g = ctx.chart.ctx.createLinearGradient(0, area.bottom, 0, area.top);
-  g.addColorStop(0, color);
-  g.addColorStop(0.55, color);
-  g.addColorStop(1, '#ffffff');
-  return g;
-}
-
-function destroyMainOnly() {
+function destroyChartJsMain() {
   if (typeof chartMain !== 'undefined' && chartMain) {
     try { chartMain.destroy(); } catch (e) {}
     chartMain = null;
   }
 }
-function destroyTrendOnly() {
+function destroyChartJsTrend() {
   if (typeof chartTrend !== 'undefined' && chartTrend) {
     try { chartTrend.destroy(); } catch (e) {}
     chartTrend = null;
   }
 }
 
+/** Contenedor del gráfico 3D (reemplaza canvas Chart.js) */
+function ensureHcContainer(canvasId) {
+  var cv = document.getElementById(canvasId);
+  if (!cv) return null;
+  var parent = cv.parentElement;
+  if (!parent) return null;
+  var hid = canvasId + '-hc';
+  var div = document.getElementById(hid);
+  if (!div) {
+    div = document.createElement('div');
+    div.id = hid;
+    div.style.width = '100%';
+    div.style.height = parent.clientHeight ? parent.clientHeight + 'px' : '280px';
+    div.style.minHeight = '260px';
+    parent.appendChild(div);
+  }
+  cv.style.display = 'none';
+  div.style.display = 'block';
+  return div;
+}
+
 function drawMicroBarDual(d, bl) {
-  destroyMainOnly();
-  var cv = document.getElementById('cMain');
-  if (!cv || typeof Chart === 'undefined') return;
+  destroyChartJsMain();
+  if (typeof Highcharts === 'undefined') {
+    console.error('Highcharts no cargado');
+    return;
+  }
 
-  var keys = MICRO_KEYS || ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
-  var labels = keys.map(function (k) { return (MICRO_LABELS && MICRO_LABELS[k]) || k; });
-  var baseData = keys.map(function (k) { return (bl.micro && bl.micro[k] != null) ? +bl.micro[k] : 0; });
-  var monthData = keys.map(function (k) { return d && d[k] != null ? +d[k] : 0; });
+  var keys = (typeof MICRO_KEYS !== 'undefined' ? MICRO_KEYS : null) ||
+    ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
+  var labels = keys.map(function (k) {
+    return (typeof MICRO_LABELS !== 'undefined' && MICRO_LABELS[k]) ? MICRO_LABELS[k] : k;
+  });
+  var baseData = keys.map(function (k) {
+    return (bl.micro && bl.micro[k] != null) ? +bl.micro[k] : 0;
+  });
+  var monthData = keys.map(function (k) {
+    return d && d[k] != null ? +d[k] : 0;
+  });
   var onlyBase = isStartMonth(bl) || !d;
+  var mesLabel = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[activeMonth])
+    ? MONTH_NAMES[activeMonth] : String(activeMonth);
 
-  var datasets = [{
-    label: 'Punto de partida (siembra)',
+  var series = [{
+    name: 'Punto de partida (siembra)',
     data: baseData,
-    backgroundColor: function (c) { return barGradient(c, '#78909c'); },
-    borderColor: '#455a64',
-    borderWidth: 2,
-    borderSkipped: false,
-    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
-    barPercentage: 0.75,
-    categoryPercentage: 0.7
+    color: BASELINE_COLOR,
+    edgeColor: '#546e7a'
   }];
-
   if (!onlyBase) {
-    datasets.push({
-      label: 'Resultado ' + ((MONTH_NAMES && MONTH_NAMES[activeMonth]) || activeMonth),
-      data: monthData,
-      backgroundColor: function (c) {
-        var k = keys[c.dataIndex];
-        return barGradient(c, MONTH_COLOR_MICRO[k] || '#1565c0');
-      },
-      borderColor: '#0d47a1',
-      borderWidth: 2,
-      borderSkipped: false,
-      borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
-      barPercentage: 0.75,
-      categoryPercentage: 0.7
+    series.push({
+      name: 'Resultado ' + mesLabel,
+      data: monthData.map(function (v, i) {
+        return { y: v, color: MONTH_COLOR_MICRO[keys[i]] || '#1565c0' };
+      }),
+      edgeColor: '#0d47a1'
     });
   }
 
-  chartMain = new Chart(cv, {
-    type: 'bar',
-    data: { labels: labels, datasets: datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 11 } } },
-        datalabels: {
-          color: '#263238',
-          anchor: 'end',
-          align: 'top',
-          font: { size: 10, weight: '600' },
-          formatter: function (v) { return v == null ? '' : v; }
-        },
-        title: {
-          display: true,
-          text: onlyBase
-            ? 'Punto de partida · Siembra ' + (bl.fechaSiembra || '')
-            : 'Comparación 3D: siembra vs ' + ((MONTH_NAMES && MONTH_NAMES[activeMonth]) || '') + ' ' + activeYear,
-          font: { size: 13, weight: '600' },
-          color: '#37474f',
-          padding: { bottom: 8 }
+  var el = ensureHcContainer('cMain');
+  if (!el) return;
+
+  Highcharts.chart(el.id, {
+    chart: {
+      type: 'column',
+      backgroundColor: 'transparent',
+      options3d: {
+        enabled: true,
+        alpha: 12,
+        beta: 18,
+        depth: 55,
+        viewDistance: 28,
+        frame: {
+          bottom: { size: 1, color: 'rgba(0,0,0,0.06)' },
+          side: { size: 1, color: 'rgba(0,0,0,0.04)' },
+          back: { size: 1, color: 'rgba(0,0,0,0.03)' }
         }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11, weight: '500' } }
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: 'rgba(0,0,0,0.07)' },
-          ticks: { font: { size: 10 } }
+      }
+    },
+    title: {
+      text: onlyBase
+        ? 'Punto de partida · Siembra ' + (bl.fechaSiembra || '')
+        : 'Comparación 3D · siembra vs ' + mesLabel + ' ' + activeYear,
+      style: { fontSize: '13px', fontWeight: '600', color: '#37474f' }
+    },
+    subtitle: {
+      text: onlyBase ? 'Solo promedio de siembra (mes de inicio)' : 'Gris = siembra · Colores = resultado del mes',
+      style: { fontSize: '11px', color: '#78909c' }
+    },
+    xAxis: {
+      categories: labels,
+      labels: { style: { fontSize: '10px', fontWeight: '500' } }
+    },
+    yAxis: {
+      title: { text: 'ufc/gr', style: { fontSize: '11px' } },
+      min: 0,
+      gridLineColor: 'rgba(0,0,0,0.08)'
+    },
+    legend: {
+      enabled: true,
+      itemStyle: { fontSize: '11px' }
+    },
+    plotOptions: {
+      column: {
+        depth: 28,
+        grouping: true,
+        groupZPadding: 8,
+        edgeWidth: 1,
+        dataLabels: {
+          enabled: true,
+          style: { fontSize: '9px', fontWeight: '600', textOutline: 'none', color: '#263238' },
+          formatter: function () {
+            return this.y === 0 ? '0' : this.y;
+          }
         }
-      },
-      animation: { duration: 600 }
+      }
+    },
+    series: series,
+    credits: { enabled: false },
+    tooltip: {
+      shared: true,
+      headerFormat: '<b>{point.key}</b><br/>',
+      pointFormat: '<span style="color:{series.color}">●</span> {series.name}: <b>{point.y}</b><br/>'
     }
   });
+}
 
-  /* Sombra CSS al canvas para profundidad 3D */
-  if (cv.parentElement) {
-    cv.parentElement.style.perspective = '800px';
-    cv.style.transform = 'rotateX(6deg)';
-    cv.style.transformOrigin = 'center bottom';
-    cv.style.filter = 'drop-shadow(0 10px 14px rgba(0,0,0,0.18))';
+function drawFisicoBarDual(d, fields, bl) {
+  destroyChartJsMain();
+  if (typeof Highcharts === 'undefined') return;
+
+  fields = fields && fields.length ? fields : ['humedad', 'ph', 'ceniza', 'grasa'];
+  var labels = fields.map(function (k) {
+    return (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[k]) ? FISICO_LABELS[k] : k;
+  });
+  var baseData = fields.map(function (k) {
+    return bl.fisico && bl.fisico[k] != null ? +bl.fisico[k] : 0;
+  });
+  var monthData = fields.map(function (k) {
+    return d && d[k] != null ? +d[k] : 0;
+  });
+  var onlyBase = isStartMonth(bl) || !d;
+  var mesLabel = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[activeMonth])
+    ? MONTH_NAMES[activeMonth] : String(activeMonth);
+
+  var series = [{
+    name: 'Punto de partida (siembra)',
+    data: baseData,
+    color: BASELINE_COLOR,
+    edgeColor: '#546e7a'
+  }];
+  if (!onlyBase) {
+    series.push({
+      name: 'Resultado ' + mesLabel,
+      data: monthData.map(function (v, i) {
+        return { y: v, color: FISICO_COLORS[fields[i]] || '#1565c0' };
+      }),
+      edgeColor: '#0d47a1'
+    });
   }
+
+  var el = ensureHcContainer('cMain');
+  if (!el) return;
+
+  Highcharts.chart(el.id, {
+    chart: {
+      type: 'column',
+      backgroundColor: 'transparent',
+      options3d: {
+        enabled: true,
+        alpha: 12,
+        beta: 18,
+        depth: 55,
+        viewDistance: 28,
+        frame: {
+          bottom: { size: 1, color: 'rgba(0,0,0,0.06)' },
+          side: { size: 1, color: 'rgba(0,0,0,0.04)' },
+          back: { size: 1, color: 'rgba(0,0,0,0.03)' }
+        }
+      }
+    },
+    title: {
+      text: onlyBase ? 'Punto de partida físicoquímico 3D' : 'Comparación 3D · siembra vs ' + mesLabel,
+      style: { fontSize: '13px', fontWeight: '600', color: '#37474f' }
+    },
+    xAxis: { categories: labels, labels: { style: { fontSize: '10px' } } },
+    yAxis: { title: { text: null }, min: 0, gridLineColor: 'rgba(0,0,0,0.08)' },
+    legend: { enabled: true, itemStyle: { fontSize: '11px' } },
+    plotOptions: {
+      column: {
+        depth: 28,
+        grouping: true,
+        groupZPadding: 8,
+        edgeWidth: 1,
+        dataLabels: {
+          enabled: true,
+          style: { fontSize: '9px', fontWeight: '600', textOutline: 'none' },
+          formatter: function () { return Highcharts.numberFormat(this.y, 2); }
+        }
+      }
+    },
+    series: series,
+    credits: { enabled: false }
+  });
 }
 
 function drawMicroTrendDual(bl) {
-  destroyTrendOnly();
+  destroyChartJsTrend();
   var cv = document.getElementById('cTrend');
   if (!cv || typeof Chart === 'undefined') return;
 
-  var rows = (microRows || []).slice().sort(function (a, b) { return a.mes - b.mes; });
+  /* tendencia sigue en Chart.js 2D (más legible para líneas) */
+  var trendHc = document.getElementById('cTrend-hc');
+  if (trendHc) trendHc.style.display = 'none';
+  cv.style.display = 'block';
+
+  var rows = (typeof microRows !== 'undefined' ? microRows : []).slice()
+    .sort(function (a, b) { return a.mes - b.mes; });
   var labels = rows.map(function (r) { return MONTH_NAMES[r.mes]; });
   var baseRtamv = (bl.micro && bl.micro.rtamv) || 0;
   var baseMohos = (bl.micro && bl.micro.mohos) || 0;
@@ -190,49 +300,29 @@ function drawMicroTrendDual(bl) {
         {
           label: 'Punto partida RTAMV',
           data: rows.map(function () { return baseRtamv; }),
-          borderColor: '#78909c',
-          borderDash: [8, 5],
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: false,
-          tension: 0
+          borderColor: '#78909c', borderDash: [8, 5], borderWidth: 2,
+          pointRadius: 0, fill: false, tension: 0
         },
         {
           label: 'RTAMV mes',
           data: rows.map(function (r) { return r.rtamv; }),
-          borderColor: '#1565c0',
-          backgroundColor: 'rgba(21,101,192,0.15)',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 5,
-          pointBackgroundColor: '#1565c0',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
+          borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,0.12)',
+          borderWidth: 3, fill: true, tension: 0.35,
+          pointRadius: 5, pointBackgroundColor: '#1565c0',
+          pointBorderColor: '#fff', pointBorderWidth: 2
         },
         {
           label: 'Punto partida Mohos',
           data: rows.map(function () { return baseMohos; }),
-          borderColor: '#b0bec5',
-          borderDash: [6, 4],
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: false,
-          tension: 0,
-          yAxisID: 'y1'
+          borderColor: '#b0bec5', borderDash: [6, 4], borderWidth: 2,
+          pointRadius: 0, fill: false, tension: 0, yAxisID: 'y1'
         },
         {
           label: 'Mohos mes',
           data: rows.map(function (r) { return r.mohos; }),
-          borderColor: '#ef6c00',
-          borderWidth: 3,
-          fill: false,
-          tension: 0.35,
-          pointRadius: 5,
-          pointBackgroundColor: '#ef6c00',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-          yAxisID: 'y1'
+          borderColor: '#ef6c00', borderWidth: 3, fill: false, tension: 0.35,
+          pointRadius: 5, pointBackgroundColor: '#ef6c00',
+          pointBorderColor: '#fff', pointBorderWidth: 2, yAxisID: 'y1'
         }
       ]
     },
@@ -250,100 +340,32 @@ function drawMicroTrendDual(bl) {
         }
       },
       scales: {
-        y: { position: 'left', title: { display: true, text: 'RTAMV', font: { size: 11 } } },
+        y: { position: 'left', title: { display: true, text: 'RTAMV' } },
         y1: {
           position: 'right',
           grid: { drawOnChartArea: false },
           beginAtZero: true,
-          title: { display: true, text: 'Mohos', font: { size: 11 } }
+          title: { display: true, text: 'Mohos' }
         }
       }
     }
   });
-  if (cv.parentElement) {
-    cv.style.transform = 'none';
-    cv.style.filter = 'drop-shadow(0 6px 10px rgba(0,0,0,0.12))';
-  }
-}
-
-function drawFisicoBarDual(d, fields, bl) {
-  destroyMainOnly();
-  var cv = document.getElementById('cMain');
-  if (!cv) return;
-  fields = fields && fields.length ? fields : ['humedad', 'ph', 'ceniza', 'grasa'];
-  var labels = fields.map(function (k) { return (FISICO_LABELS && FISICO_LABELS[k]) || k; });
-  var baseData = fields.map(function (k) { return bl.fisico && bl.fisico[k] != null ? +bl.fisico[k] : 0; });
-  var monthData = fields.map(function (k) { return d && d[k] != null ? +d[k] : 0; });
-  var onlyBase = isStartMonth(bl) || !d;
-
-  var datasets = [{
-    label: 'Punto de partida (siembra)',
-    data: baseData,
-    backgroundColor: function (c) { return barGradient(c, '#78909c'); },
-    borderColor: '#455a64',
-    borderWidth: 2,
-    borderSkipped: false,
-    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 }
-  }];
-  if (!onlyBase) {
-    datasets.push({
-      label: 'Resultado ' + ((MONTH_NAMES && MONTH_NAMES[activeMonth]) || ''),
-      data: monthData,
-      backgroundColor: function (c) {
-        var k = fields[c.dataIndex];
-        return barGradient(c, (COLORS && COLORS[k]) || '#1565c0');
-      },
-      borderColor: '#0d47a1',
-      borderWidth: 2,
-      borderSkipped: false,
-      borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 }
-    });
-  }
-
-  chartMain = new Chart(cv, {
-    type: 'bar',
-    data: { labels: labels, datasets: datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom' },
-        datalabels: {
-          color: '#263238',
-          anchor: 'end',
-          align: 'top',
-          font: { size: 10, weight: '600' },
-          formatter: function (v) { return (+v).toFixed(2); }
-        },
-        title: {
-          display: true,
-          text: onlyBase ? 'Punto de partida físicoquímico' : 'Comparación 3D: siembra vs mes',
-          font: { size: 13, weight: '600' },
-          color: '#37474f'
-        }
-      },
-      scales: {
-        x: { grid: { display: false } },
-        y: { beginAtZero: true }
-      }
-    }
-  });
-  if (cv.parentElement) {
-    cv.style.transform = 'rotateX(6deg)';
-    cv.style.transformOrigin = 'center bottom';
-    cv.style.filter = 'drop-shadow(0 10px 14px rgba(0,0,0,0.18))';
-  }
 }
 
 function drawFisicoTrendDual(bl, key) {
   key = key || window.trendParam || 'humedad';
-  destroyTrendOnly();
+  destroyChartJsTrend();
   var cv = document.getElementById('cTrend');
-  if (!cv) return;
-  var rows = (fisicoRows || []).slice().sort(function (a, b) { return a.mes - b.mes; });
+  if (!cv || typeof Chart === 'undefined') return;
+  var trendHc = document.getElementById('cTrend-hc');
+  if (trendHc) trendHc.style.display = 'none';
+  cv.style.display = 'block';
+
+  var rows = (typeof fisicoRows !== 'undefined' ? fisicoRows : []).slice()
+    .sort(function (a, b) { return a.mes - b.mes; });
   var baseVal = bl.fisico && bl.fisico[key] != null ? +bl.fisico[key] : 0;
-  var label = (FISICO_LABELS && FISICO_LABELS[key]) || key;
-  var color = (COLORS && COLORS[key]) || '#1565c0';
+  var label = (typeof FISICO_LABELS !== 'undefined' && FISICO_LABELS[key]) ? FISICO_LABELS[key] : key;
+  var color = FISICO_COLORS[key] || '#1565c0';
 
   chartTrend = new Chart(cv, {
     type: 'line',
@@ -353,25 +375,16 @@ function drawFisicoTrendDual(bl, key) {
         {
           label: 'Punto partida',
           data: rows.map(function () { return baseVal; }),
-          borderColor: '#78909c',
-          borderDash: [8, 5],
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: false,
-          tension: 0
+          borderColor: '#78909c', borderDash: [8, 5], borderWidth: 2,
+          pointRadius: 0, fill: false, tension: 0
         },
         {
           label: label + ' mes',
           data: rows.map(function (r) { return r[key] != null ? +r[key] : null; }),
-          borderColor: color,
-          backgroundColor: color + '22',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 5,
-          pointBackgroundColor: color,
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
+          borderColor: color, backgroundColor: color + '22',
+          borderWidth: 3, fill: true, tension: 0.35,
+          pointRadius: 5, pointBackgroundColor: color,
+          pointBorderColor: '#fff', pointBorderWidth: 2
         }
       ]
     },
@@ -390,12 +403,10 @@ function drawFisicoTrendDual(bl, key) {
       }
     }
   });
-  cv.style.transform = 'none';
-  cv.style.filter = 'drop-shadow(0 6px 10px rgba(0,0,0,0.12))';
 }
 
 function baselineInfoHtml(bl, p) {
-  var mesNom = (MONTH_NAMES && MONTH_NAMES[bl.mesInicio]) || bl.mesInicio;
+  var mesNom = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[bl.mesInicio]) ? MONTH_NAMES[bl.mesInicio] : bl.mesInicio;
   return (
     '<div class="card full" style="background:linear-gradient(90deg,#eceff1,#f5f7fa)">' +
     '<div class="card-title">Punto de partida · Estudio de vida útil</div>' +
@@ -403,8 +414,8 @@ function baselineInfoHtml(bl, p) {
     '<strong>Lote</strong> ' + (p && p.lote ? p.lote : bl.lote || '—') +
     ' → inicio <strong>' + mesNom + ' ' + bl.anioInicio + '</strong>' +
     (bl.fechaSiembra ? ' · Fecha siembra: <strong>' + bl.fechaSiembra + '</strong>' : '') +
-    '<br><span style="font-size:12px;opacity:.85">Promedio de parrillas de siembra (Excel). ' +
-    'Mes de inicio: solo punto de partida. Meses siguientes: comparación siembra vs resultado.</span>' +
+    '<br><span style="font-size:12px;opacity:.85">Promedio de parrillas de siembra. ' +
+    'Mes de inicio: solo punto de partida. Después: columnas 3D siembra vs resultado.</span>' +
     '</div></div>'
   );
 }
@@ -434,29 +445,27 @@ function installVidaUtilHooks() {
 
 function wrapRenders() {
   ['renderMicro', 'renderFisico'].forEach(function (name) {
-    if (typeof window[name] !== 'function' || window[name]._vu2) return;
+    if (typeof window[name] !== 'function' || window[name]._vu3) return;
     var orig = window[name];
     window[name] = function (p) {
       orig.apply(this, arguments);
       setTimeout(function () {
         var content = document.getElementById('content');
-        if (!content) return;
-        if (!content.querySelector('.vu-baseline-card')) {
-          var bl = getBaseline(activeCodigo, p && p.lote);
-          var wrap = document.createElement('div');
-          wrap.className = 'vu-baseline-card';
-          wrap.innerHTML = baselineInfoHtml(bl, p);
-          content.insertBefore(wrap.firstChild, content.firstChild);
-        }
+        if (!content || content.querySelector('.vu-baseline-card')) return;
+        var bl = getBaseline(activeCodigo, p && p.lote);
+        var wrap = document.createElement('div');
+        wrap.className = 'vu-baseline-card';
+        wrap.innerHTML = baselineInfoHtml(bl, p);
+        content.insertBefore(wrap.firstChild, content.firstChild);
       }, 40);
     };
-    window[name]._vu2 = true;
+    window[name]._vu3 = true;
   });
 }
 
 loadBaselines().then(function () {
   installVidaUtilHooks();
   wrapRenders();
-  setTimeout(function () { installVidaUtilHooks(); wrapRenders(); }, 300);
-  setTimeout(function () { installVidaUtilHooks(); wrapRenders(); }, 1200);
+  setTimeout(function () { installVidaUtilHooks(); wrapRenders(); }, 400);
+  setTimeout(function () { installVidaUtilHooks(); wrapRenders(); }, 1500);
 });
