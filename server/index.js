@@ -1,6 +1,6 @@
 /**
- * Romex QC API v1.5.1
- * + DELETE mes · auditoría · alertas · no-cache static
+ * Romex QC API v1.5.3
+ * Producción Render · PostgreSQL · estáticos · no-cache HTML/JS/CSS
  */
 'use strict';
 
@@ -12,12 +12,13 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const DB_TYPE = (process.env.DB_TYPE || 'mssql').toLowerCase();
 const TOKEN_HOURS = 12;
 const BCRYPT_ROUNDS = 10;
 const IS_PROD = process.env.NODE_ENV === 'production';
-const VERSION = '1.5.1';
+const VERSION = '1.5.3';
 
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
@@ -475,7 +476,6 @@ app.post('/api/productos/:codigo/mes', authRequired, adminRequired, async functi
   } catch (e) { res.status(500).json({ error: safeError(e) }); }
 });
 
-/* Archivos estáticos: no cachear HTML/JS/CSS para no servir UI vieja */
 var staticRoot = path.join(__dirname, '..');
 app.use(express.static(staticRoot, {
   setHeaders: function (res, filePath) {
@@ -493,8 +493,8 @@ app.get('*', function (req, res) {
 });
 
 initDb().then(function () {
-  app.listen(PORT, function () {
-    console.log('Romex QC API v' + VERSION + ' · port ' + PORT + ' · DB ' + DB_TYPE);
+  app.listen(PORT, '0.0.0.0', function () {
+    console.log('Romex QC API v' + VERSION + ' · port ' + PORT + ' · DB ' + DB_TYPE + ' · ' + (IS_PROD ? 'PRODUCTION' : 'dev'));
   });
 }).catch(function (err) {
   console.error(err);
