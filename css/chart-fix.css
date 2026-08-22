@@ -1,23 +1,44 @@
-/* Gráfico 3D ordenado y a ancho completo */
+/* Solo márgenes / layout del gráfico 3D — no altera el resto de la UI */
+
 .chart-box {
   position: relative;
-  min-height: 380px;
+  box-sizing: border-box;
   width: 100%;
-  padding: 4px 0 8px;
+  min-height: 480px;
+  margin: 8px 0 16px;
+  padding: 12px 8px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
+  overflow: visible;
 }
+
+.chart-box.sm {
+  min-height: 220px;
+  margin: 4px 0 8px;
+  padding: 8px 4px 12px;
+}
+
 .chart-box canvas#cMain {
   display: block !important;
   width: 100% !important;
   max-width: 100%;
-  height: 380px !important;
+  height: 460px !important;
+  margin: 0 auto;
 }
-/* Forzar tarjeta del gráfico a ocupar toda la fila del grid */
+
+.chart-box.sm canvas {
+  height: 200px !important;
+}
+
+/* Tarjeta del gráfico a ancho completo con margen interno coherente */
 .content > .card:has(#cMain),
-.content > .card:has(.chart-box) {
-  grid-column: 1 / -1;
-}
+.content > .card:has(.chart-box),
 .content > .card.full {
   grid-column: 1 / -1;
+  margin-bottom: 16px;
+}
+
+.content > .card:has(#cMain) .card-title {
+  margin-bottom: 4px;
+  padding: 0 4px;
 }
