@@ -1,4 +1,4 @@
-/* Romex QC — app principal v1.4.2 · gráficos 3D nativos */
+/* Romex QC — app principal v1.4.4 · gráfico 3D full-width */
 'use strict';
 
 Chart.register(ChartDataLabels);
@@ -21,8 +21,8 @@ var isAdmin = userRol === 'ADMIN';
 
 var MICRO_KEYS = ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
 var MICRO_LABELS = {
-  rtamv: 'RTAMV', mohos: 'Mohos', coliformes: 'Colif.', ecoli: 'E.Coli',
-  enterobacterias: 'Enterob.', levaduras: 'Levad.', saureus: 'S.Aur.'
+  rtamv: 'RTAMV', mohos: 'Mohos', coliformes: 'Coliformes', ecoli: 'E.Coli',
+  enterobacterias: 'Enterobact.', levaduras: 'Levaduras', saureus: 'S.Aureus'
 };
 var FISICO_LABELS = {
   humedad: '% Humedad', ph: 'pH', ceniza: '% Ceniza', grasa: '% Grasa',
@@ -229,6 +229,11 @@ function emptyStateHtml(tipo) {
     tipo + ' en ' + MONTH_NAMES[activeMonth] + ' ' + activeYear + '</strong>No hay registros.' + cta + '</div>';
 }
 
+function chartCardHtml() {
+  return '<div class="card full"><div class="card-title">Gráfico 3D · siembra vs mes</div>' +
+    '<div class="chart-box" style="min-height:400px;padding:8px 4px"><canvas id="cMain"></canvas></div></div>';
+}
+
 function renderMicro(p) {
   var d = rowFor('micro');
   if (!d) {
@@ -247,7 +252,7 @@ function renderMicro(p) {
     '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Fecha</div><div class="info-val">' + date + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="' + badgeClass(estado) + '">' + estado + '</span></div></div></div></div>' +
-    '<div class="card"><div class="card-title">Resultados (ufc/gr)' + headNote + '</div>' +
+    '<div class="card full"><div class="card-title">Resultados (ufc/gr)' + headNote + '</div>' +
     '<div class="table-wrap"><table><thead><tr>' +
     MICRO_KEYS.map(function (k) { return '<th>' + MICRO_LABELS[k] + '</th>'; }).join('') +
     '</tr></thead><tbody><tr>' +
@@ -255,7 +260,7 @@ function renderMicro(p) {
       return '<td><input type="number" min="0" data-f="' + k + '" value="' + (d[k] || 0) + '"' + dis + '></td>';
     }).join('') +
     '</tr></tbody></table></div></div>' +
-    '<div class="card"><div class="card-title">Gráfico 3D · siembra vs mes</div><div class="chart-box" style="min-height:320px"><canvas id="cMain" style="display:none"></canvas><div id="cMain-3d" style="width:100%;height:320px"></div></div></div>' +
+    chartCardHtml() +
     '<div class="card full"><div class="card-title">Tendencia</div><div class="chart-box sm"><canvas id="cTrend"></canvas></div></div>' +
     '<div class="card full"><div class="card-title">Interpretación</div><div class="interp"><strong>' +
     p.nombre + '</strong> · ' + MONTH_NAMES[activeMonth] + ' ' + activeYear + ' · <strong>' + estado +
@@ -264,7 +269,7 @@ function renderMicro(p) {
   setTimeout(function () {
     drawMicroBar(d);
     drawMicroTrend();
-  }, 40);
+  }, 50);
 }
 
 function fisicoFields(d) {
@@ -292,7 +297,7 @@ function renderFisico(p) {
     '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + p.lote + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Fecha</div><div class="info-val">' + date + '</div></div>' +
     '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="' + badgeClass(estado) + '">' + estado + '</span></div></div></div></div>' +
-    '<div class="card"><div class="card-title">Resultados' + headNote + '</div>' +
+    '<div class="card full"><div class="card-title">Resultados' + headNote + '</div>' +
     '<div class="table-wrap"><table><thead><tr>' +
     fields.map(function (k) { return '<th>' + FISICO_LABELS[k] + '</th>'; }).join('') +
     '</tr></thead><tbody><tr>' +
@@ -300,7 +305,7 @@ function renderFisico(p) {
       return '<td><input type="number" step="0.01" data-f="' + k + '" value="' + d[k] + '"' + dis + '></td>';
     }).join('') +
     '</tr></tbody></table></div></div>' +
-    '<div class="card"><div class="card-title">Gráfico 3D · siembra vs mes</div><div class="chart-box" style="min-height:320px"><canvas id="cMain" style="display:none"></canvas><div id="cMain-3d" style="width:100%;height:320px"></div></div></div>' +
+    chartCardHtml() +
     '<div class="card full"><div class="card-title">Tendencia % Humedad</div><div class="chart-box sm"><canvas id="cTrend"></canvas></div></div>' +
     '<div class="card full"><div class="card-title">Interpretación</div><div class="interp"><strong>' +
     p.nombre + '</strong> · ' + MONTH_NAMES[activeMonth] + ' ' + activeYear + ' · <strong>' + estado +
@@ -309,7 +314,7 @@ function renderFisico(p) {
   setTimeout(function () {
     drawFisicoBar(d, fields);
     drawHumTrend();
-  }, 40);
+  }, 50);
 }
 
 function destroyCharts() {
@@ -317,11 +322,9 @@ function destroyCharts() {
   try { if (chartTrend) { chartTrend.destroy(); chartTrend = null; } } catch (e2) {}
 }
 
-/** Gráfico principal: SIEMPRE intenta 3D Highcharts */
 function drawMicroBar(d) {
   destroyCharts();
   if (typeof romexDrawMicro3D === 'function' && romexDrawMicro3D(d)) return;
-  /* Fallback 2D si Highcharts no cargó */
   var cv = document.getElementById('cMain');
   if (!cv) return;
   cv.style.display = 'block';

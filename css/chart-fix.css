@@ -1,0 +1,23 @@
+/* Gráfico 3D ordenado y a ancho completo */
+.chart-box {
+  position: relative;
+  min-height: 380px;
+  width: 100%;
+  padding: 4px 0 8px;
+  background: #fff;
+  border-radius: 8px;
+}
+.chart-box canvas#cMain {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100%;
+  height: 380px !important;
+}
+/* Forzar tarjeta del gráfico a ocupar toda la fila del grid */
+.content > .card:has(#cMain),
+.content > .card:has(.chart-box) {
+  grid-column: 1 / -1;
+}
+.content > .card.full {
+  grid-column: 1 / -1;
+}
