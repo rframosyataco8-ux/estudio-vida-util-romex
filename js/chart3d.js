@@ -1,4 +1,4 @@
-/* Romex QC — Columnas 3D limpias e isométricas (Canvas, sin CDN) */
+/* Romex QC — SOLO gráfico 3D (Canvas). No modifica otras funciones de la app. */
 'use strict';
 
 function romexGetBaseline(codigo) {
@@ -17,52 +17,55 @@ function romexIsStart(bl) {
 }
 
 var MICRO_3D_COLORS = {
-  rtamv: '#1565c0', mohos: '#ef6c00', coliformes: '#2e7d32', ecoli: '#00897b',
-  enterobacterias: '#7b1fa2', levaduras: '#c2185b', saureus: '#c62828'
+  rtamv: '#1976d2', mohos: '#f57c00', coliformes: '#388e3c', ecoli: '#00796b',
+  enterobacterias: '#7b1fa2', levaduras: '#c2185b', saureus: '#d32f2f'
 };
 var FISICO_3D_COLORS = {
-  humedad: '#0288d1', ph: '#7b1fa2', ceniza: '#5d4037', grasa: '#f9a825',
+  humedad: '#0288d1', ph: '#7b1fa2', ceniza: '#6d4c41', grasa: '#f9a825',
   fineza: '#00897b', acidez: '#c62828'
 };
 
+function _hexRgb(hex) {
+  hex = String(hex || '#888888').replace('#', '');
+  if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  return {
+    r: parseInt(hex.substr(0, 2), 16) || 0,
+    g: parseInt(hex.substr(2, 2), 16) || 0,
+    b: parseInt(hex.substr(4, 2), 16) || 0
+  };
+}
 function lighten(hex, pct) {
-  hex = String(hex || '#888').replace('#', '');
-  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-  var r = parseInt(hex.substr(0, 2), 16);
-  var g = parseInt(hex.substr(2, 2), 16);
-  var b = parseInt(hex.substr(4, 2), 16);
-  r = Math.min(255, Math.round(r + (255 - r) * pct));
-  g = Math.min(255, Math.round(g + (255 - g) * pct));
-  b = Math.min(255, Math.round(b + (255 - b) * pct));
-  return 'rgb(' + r + ',' + g + ',' + b + ')';
+  var c = _hexRgb(hex);
+  return 'rgb(' +
+    Math.min(255, Math.round(c.r + (255 - c.r) * pct)) + ',' +
+    Math.min(255, Math.round(c.g + (255 - c.g) * pct)) + ',' +
+    Math.min(255, Math.round(c.b + (255 - c.b) * pct)) + ')';
 }
 function darken(hex, pct) {
-  hex = String(hex || '#888').replace('#', '');
-  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-  var r = parseInt(hex.substr(0, 2), 16);
-  var g = parseInt(hex.substr(2, 2), 16);
-  var b = parseInt(hex.substr(4, 2), 16);
-  r = Math.max(0, Math.round(r * (1 - pct)));
-  g = Math.max(0, Math.round(g * (1 - pct)));
-  b = Math.max(0, Math.round(b * (1 - pct)));
-  return 'rgb(' + r + ',' + g + ',' + b + ')';
+  var c = _hexRgb(hex);
+  return 'rgb(' +
+    Math.max(0, Math.round(c.r * (1 - pct))) + ',' +
+    Math.max(0, Math.round(c.g * (1 - pct))) + ',' +
+    Math.max(0, Math.round(c.b * (1 - pct))) + ')';
 }
-
 function fmtVal(v) {
   if (v == null || !isFinite(v)) return '0';
   if (Math.abs(v) >= 100) return String(Math.round(v));
   if (Math.abs(v) >= 10) return String(Math.round(v * 10) / 10);
-  return (Math.round(v * 100) / 100).toFixed(2).replace(/\.00$/, '').replace(/(\.[1-9])0$/, '$1');
+  var t = (Math.round(v * 100) / 100).toFixed(2);
+  return t.replace(/\.00$/, '').replace(/(\.[1-9])0$/, '$1');
 }
 
 /**
- * Columnas 3D ordenadas, legibles y coherentes
+ * Dibuja columnas 3D profesionales (isométricas suaves).
+ * API pública estable: romexPaint3D / romexDrawMicro3D / romexDrawFisico3D
  */
 function romexPaint3D(canvas, labels, series, title) {
   if (!canvas) return false;
+
   var box = canvas.parentElement;
-  var W = Math.max(320, (box && box.clientWidth) ? box.clientWidth : 700);
-  var H = 380;
+  var W = Math.max(360, (box && box.clientWidth) ? box.clientWidth - 4 : 720);
+  var H = 420;
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   canvas.style.display = 'block';
@@ -75,21 +78,22 @@ function romexPaint3D(canvas, labels, series, title) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  /* fondo limpio */
-  ctx.fillStyle = '#ffffff';
+  /* Fondo */
+  ctx.fillStyle = '#fafbfc';
   ctx.fillRect(0, 0, W, H);
 
-  /* título */
-  ctx.fillStyle = '#37474f';
-  ctx.font = '600 13px Roboto, system-ui, sans-serif';
+  /* Título */
+  ctx.fillStyle = '#263238';
+  ctx.font = '600 14px Roboto, system-ui, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText(title || 'Gráfico 3D', 16, 22);
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(title || 'Gráfico 3D', 18, 24);
 
   var nCat = labels.length;
   var nSer = series.length;
   if (!nCat) return true;
 
-  var padL = 56, padR = 20, padT = 48, padB = 88;
+  var padL = 58, padR = 24, padT = 52, padB = 96;
   var plotW = W - padL - padR;
   var plotH = H - padT - padB;
   var baseY = padT + plotH;
@@ -97,84 +101,109 @@ function romexPaint3D(canvas, labels, series, title) {
   var maxV = 0;
   series.forEach(function (s) {
     (s.values || []).forEach(function (v) {
-      if (v > maxV) maxV = v;
+      if (+v > maxV) maxV = +v;
     });
   });
   if (maxV <= 0) maxV = 1;
-  /* margen superior 10% */
-  var scaleMax = maxV * 1.12;
+  var scaleMax = maxV * 1.15;
 
-  /* rejilla suave */
+  /* Eje / rejilla */
   ctx.font = '10px Roboto, system-ui, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  for (var g = 0; g <= 4; g++) {
-    var gy = padT + (plotH * g) / 4;
-    var val = scaleMax * (1 - g / 4);
-    ctx.strokeStyle = g === 4 ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.05)';
-    ctx.lineWidth = 1;
+  for (var g = 0; g <= 5; g++) {
+    var gy = padT + (plotH * g) / 5;
+    var val = scaleMax * (1 - g / 5);
+    ctx.strokeStyle = g === 5 ? 'rgba(38,50,56,0.18)' : 'rgba(38,50,56,0.06)';
+    ctx.lineWidth = g === 5 ? 1.2 : 1;
     ctx.beginPath();
     ctx.moveTo(padL, gy);
     ctx.lineTo(W - padR, gy);
     ctx.stroke();
-    ctx.fillStyle = '#78909c';
+    ctx.fillStyle = '#607d8b';
     ctx.fillText(fmtVal(val), padL - 8, gy);
   }
 
-  /* profundidad 3D moderada (limpia) */
-  var depthX = 8;
-  var depthY = 6;
-  var groupW = plotW / nCat;
-  var innerPad = Math.max(10, groupW * 0.12);
-  var usable = groupW - innerPad * 2;
-  var barGap = nSer > 1 ? 6 : 0;
-  var barW = Math.min(42, Math.max(14, (usable - barGap * (nSer - 1)) / nSer));
+  /* Plano de piso sutil (profundidad) */
+  var depthX = 12;
+  var depthY = 9;
+  ctx.fillStyle = 'rgba(176,190,197,0.12)';
+  ctx.beginPath();
+  ctx.moveTo(padL, baseY);
+  ctx.lineTo(padL + depthX, baseY - depthY);
+  ctx.lineTo(W - padR + depthX * 0.3, baseY - depthY);
+  ctx.lineTo(W - padR, baseY);
+  ctx.closePath();
+  ctx.fill();
 
-  function drawBox3DVal(x, yBottom, w, h, color, value) {
+  var groupW = plotW / nCat;
+  var barGap = nSer > 1 ? 7 : 0;
+  var barW = Math.min(48, Math.max(16, (groupW * 0.72 - barGap * (nSer - 1)) / nSer));
+
+  function drawColumn(x, yBottom, w, h, color, value) {
     if (h < 2) h = 2;
     var top = yBottom - h;
-    var sideC = darken(color, 0.22);
-    var topC = lighten(color, 0.28);
+    var front = color;
+    var side = darken(color, 0.28);
+    var lid = lighten(color, 0.32);
 
-    /* lateral */
+    /* Sombra en el piso */
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.beginPath();
+    ctx.moveTo(x + 2, yBottom);
+    ctx.lineTo(x + w + depthX + 2, yBottom);
+    ctx.lineTo(x + w + depthX + 2, yBottom + 3);
+    ctx.lineTo(x + 2, yBottom + 3);
+    ctx.closePath();
+    ctx.fill();
+
+    /* Cara lateral derecha */
     ctx.beginPath();
     ctx.moveTo(x + w, yBottom);
     ctx.lineTo(x + w + depthX, yBottom - depthY);
     ctx.lineTo(x + w + depthX, top - depthY);
     ctx.lineTo(x + w, top);
     ctx.closePath();
-    ctx.fillStyle = sideC;
+    ctx.fillStyle = side;
     ctx.fill();
 
-    /* frente */
-    ctx.fillStyle = color;
+    /* Cara frontal con ligero degradado vertical */
+    var grad = ctx.createLinearGradient(x, top, x, yBottom);
+    grad.addColorStop(0, lighten(color, 0.12));
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
     ctx.fillRect(x, top, w, h);
 
-    /* superior */
+    /* Cara superior (tapa) */
     ctx.beginPath();
     ctx.moveTo(x, top);
     ctx.lineTo(x + depthX, top - depthY);
     ctx.lineTo(x + w + depthX, top - depthY);
     ctx.lineTo(x + w, top);
     ctx.closePath();
-    ctx.fillStyle = topC;
+    ctx.fillStyle = lid;
     ctx.fill();
 
-    /* borde sutil */
-    ctx.strokeStyle = darken(color, 0.18);
-    ctx.lineWidth = 0.7;
+    /* Contornos finos */
+    ctx.strokeStyle = darken(color, 0.22);
+    ctx.lineWidth = 0.8;
     ctx.strokeRect(x, top, w, h);
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x + depthX, top - depthY);
+    ctx.lineTo(x + w + depthX, top - depthY);
+    ctx.lineTo(x + w, top);
+    ctx.stroke();
 
-    /* etiqueta valor (solo si hay espacio) */
-    if (h > 18 || value > 0) {
-      ctx.fillStyle = '#263238';
-      ctx.font = '600 9px Roboto, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(fmtVal(value), x + w / 2 + depthX * 0.4, top - depthY - 3);
-    }
+    /* Valor encima */
+    ctx.fillStyle = '#37474f';
+    ctx.font = '600 10px Roboto, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(fmtVal(value), x + w / 2 + depthX * 0.45, top - depthY - 4);
   }
 
+  /* Columnas de atrás hacia adelante no aplica (2D iso); dibujar por categoría */
   for (var i = 0; i < nCat; i++) {
     var groupCenter = padL + i * groupW + groupW / 2;
     var totalBarsW = nSer * barW + (nSer - 1) * barGap;
@@ -182,53 +211,53 @@ function romexPaint3D(canvas, labels, series, title) {
 
     for (var s = 0; s < nSer; s++) {
       var v = (series[s].values && series[s].values[i] != null) ? +series[s].values[i] : 0;
-      var h = (v / scaleMax) * (plotH - 8);
+      var h = (v / scaleMax) * (plotH - 10);
+      if (v > 0 && h < 4) h = 4;
+      if (v === 0) h = 2;
       var x = startX + s * (barW + barGap);
-      var col = (series[s].colors && series[s].colors[i]) ? series[s].colors[i] : series[s].color;
-      drawBox3DVal(x, baseY, barW, Math.max(h, v > 0 ? 3 : 1), col || '#1565c0', v);
+      var col = (series[s].colors && series[s].colors[i]) ? series[s].colors[i] : (series[s].color || '#1976d2');
+      drawColumn(x, baseY, barW, h, col, v);
     }
 
-    /* etiqueta categoría — centrada, sin solaparse */
+    /* Etiqueta categoría */
     ctx.fillStyle = '#455a64';
     ctx.font = '500 11px Roboto, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    var lab = labels[i];
-    /* si es largo, partir en 2 líneas */
-    if (lab.length > 8 && groupW < 90) {
-      var mid = Math.ceil(lab.length / 2);
-      var sp = lab.indexOf(' ', mid - 2);
-      if (sp < 0) sp = mid;
-      ctx.fillText(lab.slice(0, sp).trim(), groupCenter, baseY + 10);
-      ctx.fillText(lab.slice(sp).trim(), groupCenter, baseY + 24);
+    var lab = String(labels[i] || '');
+    if (lab.length > 10 && groupW < 100) {
+      var cut = lab.lastIndexOf(' ', 9);
+      if (cut < 4) cut = 8;
+      ctx.fillText(lab.slice(0, cut).trim(), groupCenter, baseY + 12);
+      ctx.fillText(lab.slice(cut).trim(), groupCenter, baseY + 26);
     } else {
-      ctx.fillText(lab, groupCenter, baseY + 12);
+      ctx.fillText(lab, groupCenter, baseY + 14);
     }
   }
 
-  /* leyenda limpia centrada */
-  var legendY = H - 28;
-  ctx.font = '11px Roboto, system-ui, sans-serif';
-  var totalLegW = 0;
-  var gaps = [];
+  /* Leyenda centrada */
+  var legendY = H - 26;
+  ctx.font = '500 11px Roboto, system-ui, sans-serif';
+  var parts = [];
+  var totalW = 0;
   series.forEach(function (s) {
-    var tw = 14 + 6 + ctx.measureText(s.name).width;
-    gaps.push(tw);
-    totalLegW += tw + 24;
+    var w = 14 + 6 + ctx.measureText(s.name).width;
+    parts.push(w);
+    totalW += w + 28;
   });
-  totalLegW -= 24;
-  var lx = (W - totalLegW) / 2;
+  totalW -= 28;
+  var lx = Math.max(18, (W - totalW) / 2);
   series.forEach(function (s, si) {
-    ctx.fillStyle = s.color || '#888';
-    ctx.fillRect(lx, legendY - 8, 12, 12);
-    ctx.strokeStyle = darken(s.color || '#888', 0.2);
+    ctx.fillStyle = s.color || '#90a4ae';
+    ctx.fillRect(lx, legendY - 7, 12, 12);
+    ctx.strokeStyle = darken(s.color || '#90a4ae', 0.25);
     ctx.lineWidth = 0.8;
-    ctx.strokeRect(lx, legendY - 8, 12, 12);
+    ctx.strokeRect(lx, legendY - 7, 12, 12);
     ctx.fillStyle = '#37474f';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(s.name, lx + 16, legendY - 2);
-    lx += gaps[si] + 24;
+    ctx.fillText(s.name, lx + 18, legendY - 1);
+    lx += parts[si] + 28;
   });
 
   return true;
@@ -236,7 +265,8 @@ function romexPaint3D(canvas, labels, series, title) {
 
 function romexDrawMicro3D(d) {
   var bl = romexGetBaseline(typeof activeCodigo !== 'undefined' ? activeCodigo : '');
-  var keys = typeof MICRO_KEYS !== 'undefined' ? MICRO_KEYS : ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
+  var keys = (typeof MICRO_KEYS !== 'undefined' ? MICRO_KEYS : null) ||
+    ['rtamv', 'mohos', 'coliformes', 'ecoli', 'enterobacterias', 'levaduras', 'saureus'];
   var labels = keys.map(function (k) {
     return (typeof MICRO_LABELS !== 'undefined' && MICRO_LABELS[k]) ? MICRO_LABELS[k] : k;
   });
@@ -247,7 +277,8 @@ function romexDrawMicro3D(d) {
     return d && d[k] != null ? +d[k] : 0;
   });
   var onlyBase = romexIsStart(bl) || !d;
-  var mesLabel = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[activeMonth]) ? MONTH_NAMES[activeMonth] : String(activeMonth);
+  var mesLabel = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[activeMonth])
+    ? MONTH_NAMES[activeMonth] : String(activeMonth);
 
   var series = [{
     name: 'Punto de partida (siembra)',
@@ -257,8 +288,8 @@ function romexDrawMicro3D(d) {
   if (!onlyBase) {
     series.push({
       name: 'Resultado ' + mesLabel,
-      color: '#1565c0',
-      colors: keys.map(function (k) { return MICRO_3D_COLORS[k] || '#1565c0'; }),
+      color: '#1976d2',
+      colors: keys.map(function (k) { return MICRO_3D_COLORS[k] || '#1976d2'; }),
       values: monthData
     });
   }
@@ -269,8 +300,8 @@ function romexDrawMicro3D(d) {
   if (hc) hc.style.display = 'none';
 
   var title = onlyBase
-    ? 'Punto de partida · Siembra ' + (bl.fechaSiembra || '')
-    : 'Siembra vs ' + mesLabel + ' ' + (typeof activeYear !== 'undefined' ? activeYear : '');
+    ? 'Punto de partida · Siembra' + (bl.fechaSiembra ? ' ' + bl.fechaSiembra : '')
+    : 'Siembra vs ' + mesLabel + (typeof activeYear !== 'undefined' ? ' ' + activeYear : '');
 
   return romexPaint3D(cv, labels, series, title);
 }
@@ -288,7 +319,8 @@ function romexDrawFisico3D(d, fields) {
     return d && d[k] != null ? +d[k] : 0;
   });
   var onlyBase = romexIsStart(bl) || !d;
-  var mesLabel = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[activeMonth]) ? MONTH_NAMES[activeMonth] : String(activeMonth);
+  var mesLabel = (typeof MONTH_NAMES !== 'undefined' && MONTH_NAMES[activeMonth])
+    ? MONTH_NAMES[activeMonth] : String(activeMonth);
 
   var series = [{
     name: 'Punto de partida (siembra)',
@@ -299,7 +331,7 @@ function romexDrawFisico3D(d, fields) {
     series.push({
       name: 'Resultado ' + mesLabel,
       color: '#0288d1',
-      colors: fields.map(function (k) { return FISICO_3D_COLORS[k] || '#1565c0'; }),
+      colors: fields.map(function (k) { return FISICO_3D_COLORS[k] || '#0288d1'; }),
       values: monthData
     });
   }
@@ -316,15 +348,22 @@ function romexDrawFisico3D(d, fields) {
   return romexPaint3D(cv, labels, series, title);
 }
 
+/* Carga baselines (solo datos del gráfico; no altera la app) */
 (function loadBl() {
   var urls = ['data/baselines.json', (window.API_BASE || '') + '/data/baselines.json'];
   function tryNext(i) {
-    if (i >= urls.length) { window.ROMEX_BASELINES = { products: {} }; return; }
+    if (i >= urls.length) {
+      window.ROMEX_BASELINES = window.ROMEX_BASELINES || { products: {} };
+      return;
+    }
     fetch(urls[i]).then(function (r) {
       if (!r.ok) throw new Error('fail');
       return r.json();
-    }).then(function (j) { window.ROMEX_BASELINES = j; })
-      .catch(function () { tryNext(i + 1); });
+    }).then(function (j) {
+      window.ROMEX_BASELINES = j;
+    }).catch(function () {
+      tryNext(i + 1);
+    });
   }
   tryNext(0);
 })();
