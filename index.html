@@ -12,6 +12,8 @@
 <link rel="stylesheet" href="css/dark.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/highcharts-3d.js"></script>
 <script>
 (function () {
   var t = localStorage.getItem('romex_token') || sessionStorage.getItem('romex_token');
@@ -37,6 +39,8 @@
   .empty-state strong { display: block; font-size: 15px; color: var(--md-text, #1a2332); margin-bottom: 8px; }
   .badge.warn { background: #fff3e0; color: #e65100; }
   .badge.danger { background: #ffebee; color: #c62828; }
+  .chart-box { position: relative; min-height: 280px; }
+  .chart-box canvas { max-width: 100%; }
 </style>
 <script>document.documentElement.classList.add('romex-boot');</script>
 </head>
