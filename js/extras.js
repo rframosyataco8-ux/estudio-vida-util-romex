@@ -1,4 +1,4 @@
-/* Romex QC v1.5.1 — export, comparar, auditoría, dark mode, eliminar mes */
+/* Romex QC v1.5.2 — export, comparar, auditoría, dark mode, eliminar mes */
 'use strict';
 
 (function () {
@@ -177,24 +177,15 @@
   if (tabsEl) obs.observe(tabsEl, { childList: true });
   setInterval(injectDeleteMonthBtn, 2000);
 
-  /* SW solo en puerto 3000 / producción. En Live Server (5500) NO registrar — causa UI vieja */
-  var port = location.port || '';
-  var isDevLive = port === '5500' || port === '5501' || port === '8080' || port === '5173' || location.protocol === 'file:';
-
+  /* NUNCA registrar Service Worker en desarrollo (5500 / file). En 3000 tampoco por ahora. */
   if ('serviceWorker' in navigator) {
-    if (isDevLive) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister(); });
-      }).catch(function () {});
-      if (window.caches) {
-        caches.keys().then(function (keys) {
-          keys.forEach(function (k) { caches.delete(k); });
-        });
-      }
-    } else {
-      navigator.serviceWorker.register('sw.js?v=1.5.1', { updateViaCache: 'none' }).then(function (reg) {
-        reg.update();
-      }).catch(function () {});
+    navigator.serviceWorker.getRegistrations().then(function (regs) {
+      regs.forEach(function (r) { r.unregister(); });
+    }).catch(function () {});
+    if (window.caches) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (k) { caches.delete(k); });
+      });
     }
   }
 })();
