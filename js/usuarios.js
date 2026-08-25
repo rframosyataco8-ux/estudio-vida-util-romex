@@ -4,19 +4,49 @@
 (function () {
   function $(id) { return document.getElementById(id); }
 
-  function isSuperUser() {
-    var u = (localStorage.getItem('romex_user') || sessionStorage.getItem('romex_user') || '').toLowerCase();
+  var cachedUser = null;
+
+  async function getLoginUser() {
+    if (cachedUser) return cachedUser;
+    // Preferir lo que devuelve el servidor (usuario real, no el nombre)
+    try {
+      if (typeof api === 'function') {
+        var me = await api('/me');
+        if (me && me.user) {
+          cachedUser = String(me.user).toLowerCase();
+          // Guardar también el usuario real para la próxima vez
+          var store = localStorage.getItem('romex_token') ? localStorage : sessionStorage;
+          store.setItem('romex_user_login', cachedUser);
+          return cachedUser;
+        }
+      }
+    } catch (e) {}
+    var u = (localStorage.getItem('romex_user_login') ||
+             localStorage.getItem('romex_user') ||
+             sessionStorage.getItem('romex_user_login') ||
+             sessionStorage.getItem('romex_user') || '').toLowerCase();
+    // Si guardaron el nombre en vez del usuario, mapear casos conocidos
+    if (u === 'administrador') u = 'admin';
+    if (u.indexOf('rodrigo') === 0) u = 'rodrigo';
+    cachedUser = u;
+    return u;
+  }
+
+  async function isSuperUser() {
+    var u = await getLoginUser();
     return u === 'admin' || u === 'rodrigo';
   }
 
-  function showUsersBtn() {
+  async function showUsersBtn() {
     var btn = $('usersBtn');
     if (!btn) return;
-    btn.hidden = !isSuperUser();
+    var ok = await isSuperUser();
+    btn.hidden = !ok;
   }
 
   window.openUsersModal = async function () {
-    if (!isSuperUser()) {
+    var ok = await isSuperUser();
+    if (!ok) {
       if (typeof snack === 'function') snack('Sin permiso');
       return;
     }
@@ -125,7 +155,7 @@
     }
   });
 
-  // Mostrar botón cuando haya sesión
-  setInterval(showUsersBtn, 1500);
-  setTimeout(showUsersBtn, 800);
+  setInterval(function () { showUsersBtn(); }, 2000);
+  setTimeout(function () { showUsersBtn(); }, 600);
+  setTimeout(function () { showUsersBtn(); }, 1500);
 })();
