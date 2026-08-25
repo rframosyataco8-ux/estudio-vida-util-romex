@@ -11,12 +11,12 @@
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.5.2">
-<link rel="stylesheet" href="css/dark.css?v=1.5.2">
-<link rel="stylesheet" href="css/chart-fix.css?v=1.5.2">
-<link rel="stylesheet" href="css/ui-v15.css?v=1.5.2">
-<link rel="stylesheet" href="css/siembra.css?v=1.5.3">
-<script src="js/boot-cache.js?v=1.5.2"></script>
+<link rel="stylesheet" href="css/styles.css?v=1.5.5">
+<link rel="stylesheet" href="css/dark.css?v=1.5.5">
+<link rel="stylesheet" href="css/chart-fix.css?v=1.5.5">
+<link rel="stylesheet" href="css/ui-v15.css?v=1.5.5">
+<link rel="stylesheet" href="css/siembra.css?v=1.5.5">
+<script src="js/boot-cache.js?v=1.5.5"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
@@ -44,6 +44,7 @@
   .empty-state strong { display: block; font-size: 15px; color: var(--md-text, #1a2332); margin-bottom: 8px; }
   .badge.warn { background: #fff3e0; color: #e65100; }
   .badge.danger { background: #ffebee; color: #c62828; }
+  .user-rol { font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid #ccc; }
 </style>
 <script>document.documentElement.classList.add('romex-boot');</script>
 </head>
@@ -77,7 +78,7 @@
       <span class="material-icons-outlined">science</span>
       <div>
         <div class="drawer-title">Romex QC</div>
-        <div class="drawer-sub">Vida útil · v1.5.3</div>
+        <div class="drawer-sub">Vida útil · v1.5.5</div>
       </div>
     </div>
     <div class="drawer-body">
@@ -95,6 +96,11 @@
         </button>
         <button type="button" class="drawer-action-btn" id="auditBtn" style="margin-top:6px">
           <span class="material-icons-outlined">history</span> Auditoría
+        </button>
+      </div>
+      <div class="drawer-actions" id="superUserActions" style="margin-top:8px">
+        <button type="button" class="drawer-action-btn" id="usersBtn" hidden>
+          <span class="material-icons-outlined">manage_accounts</span> Gestión de usuarios
         </button>
       </div>
     </div>
@@ -243,6 +249,35 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modalUsers" hidden>
+    <div class="modal" role="dialog" style="max-width:780px">
+      <div class="modal-head">
+        <h2>Gestión de usuarios</h2>
+        <button type="button" class="modal-close" data-close="modalUsers">&times;</button>
+      </div>
+      <div class="modal-body">
+        <h3 class="modal-section">Crear usuario</h3>
+        <div class="form-grid" style="margin-bottom:16px">
+          <label>Usuario <input type="text" id="newUserUser" placeholder="ej. juan" autocomplete="off"></label>
+          <label>Nombre <input type="text" id="newUserNombre" placeholder="Nombre completo"></label>
+          <label>Contraseña <input type="password" id="newUserPass" placeholder="mín. 4 caracteres"></label>
+          <label>Rol
+            <select id="newUserRol">
+              <option value="LECTOR">LECTOR</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </label>
+        </div>
+        <button type="button" class="btn-primary" id="saveNewUserBtn" style="margin-bottom:20px">Crear usuario</button>
+        <h3 class="modal-section">Usuarios existentes</h3>
+        <div id="usersList">—</div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-ghost" data-close="modalUsers">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="snackbar" id="snackbar"></div>
   <script>
     (function () {
@@ -256,11 +291,12 @@
       }
     })();
   </script>
-  <script src="js/chart3d.js?v=1.5.2"></script>
-  <script src="js/siembra.js?v=1.5.3"></script>
-  <script src="js/app.js?v=1.5.2"></script>
-  <script src="js/app-v151.js?v=1.5.2"></script>
-  <script src="js/extras.js?v=1.5.2"></script>
-  <script src="js/ui-v15.js?v=1.5.2"></script>
+  <script src="js/chart3d.js?v=1.5.5"></script>
+  <script src="js/siembra.js?v=1.5.5"></script>
+  <script src="js/app.js?v=1.5.5"></script>
+  <script src="js/app-v151.js?v=1.5.5"></script>
+  <script src="js/extras.js?v=1.5.5"></script>
+  <script src="js/ui-v15.js?v=1.5.5"></script>
+  <script src="js/usuarios.js?v=1.5.5"></script>
 </body>
 </html>
