@@ -11,12 +11,12 @@
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.5.5">
-<link rel="stylesheet" href="css/dark.css?v=1.5.5">
-<link rel="stylesheet" href="css/chart-fix.css?v=1.5.5">
-<link rel="stylesheet" href="css/ui-v15.css?v=1.5.5">
-<link rel="stylesheet" href="css/siembra.css?v=1.5.5">
-<script src="js/boot-cache.js?v=1.5.5"></script>
+<link rel="stylesheet" href="css/styles.css?v=1.5.6">
+<link rel="stylesheet" href="css/dark.css?v=1.5.6">
+<link rel="stylesheet" href="css/chart-fix.css?v=1.5.6">
+<link rel="stylesheet" href="css/ui-v15.css?v=1.5.6">
+<link rel="stylesheet" href="css/siembra.css?v=1.5.6">
+<script src="js/boot-cache.js?v=1.5.6"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
@@ -78,7 +78,7 @@
       <span class="material-icons-outlined">science</span>
       <div>
         <div class="drawer-title">Romex QC</div>
-        <div class="drawer-sub">Vida útil · v1.5.5</div>
+        <div class="drawer-sub">Vida útil · v1.5.6</div>
       </div>
     </div>
     <div class="drawer-body">
@@ -250,14 +250,14 @@
   </div>
 
   <div class="modal-backdrop" id="modalUsers" hidden>
-    <div class="modal" role="dialog" style="max-width:780px">
+    <div class="modal" role="dialog" style="max-width:820px">
       <div class="modal-head">
-        <h2>Gestión de usuarios</h2>
+        <h2>Gestión de usuarios y permisos</h2>
         <button type="button" class="modal-close" data-close="modalUsers">&times;</button>
       </div>
       <div class="modal-body">
         <h3 class="modal-section">Crear usuario</h3>
-        <div class="form-grid" style="margin-bottom:16px">
+        <div class="form-grid" style="margin-bottom:12px">
           <label>Usuario <input type="text" id="newUserUser" placeholder="ej. juan" autocomplete="off"></label>
           <label>Nombre <input type="text" id="newUserNombre" placeholder="Nombre completo"></label>
           <label>Contraseña <input type="password" id="newUserPass" placeholder="mín. 4 caracteres"></label>
@@ -265,6 +265,26 @@
             <select id="newUserRol">
               <option value="LECTOR">LECTOR</option>
               <option value="ADMIN">ADMIN</option>
+            </select>
+          </label>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;font-size:13px;align-items:center">
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="newPermMicro" checked> Microbiología</label>
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="newPermFisico" checked> Físicoquímico</label>
+          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="newPermEdit"> Puede editar</label>
+          <label>Meses:
+            <select id="newPermDesde">
+              <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
+              <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
+              <option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option>
+              <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dic</option>
+            </select>
+            →
+            <select id="newPermHasta">
+              <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
+              <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
+              <option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option>
+              <option value="10">Oct</option><option value="11">Nov</option><option value="12" selected>Dic</option>
             </select>
           </label>
         </div>
@@ -291,12 +311,13 @@
       }
     })();
   </script>
-  <script src="js/chart3d.js?v=1.5.5"></script>
-  <script src="js/siembra.js?v=1.5.5"></script>
-  <script src="js/app.js?v=1.5.5"></script>
-  <script src="js/app-v151.js?v=1.5.5"></script>
-  <script src="js/extras.js?v=1.5.5"></script>
-  <script src="js/ui-v15.js?v=1.5.5"></script>
-  <script src="js/usuarios.js?v=1.5.5"></script>
+  <script src="js/chart3d.js?v=1.5.6"></script>
+  <script src="js/siembra.js?v=1.5.6"></script>
+  <script src="js/app.js?v=1.5.6"></script>
+  <script src="js/app-v151.js?v=1.5.6"></script>
+  <script src="js/extras.js?v=1.5.6"></script>
+  <script src="js/ui-v15.js?v=1.5.6"></script>
+  <script src="js/usuarios.js?v=1.5.6"></script>
+  <script src="js/permisos.js?v=1.5.6"></script>
 </body>
 </html>
