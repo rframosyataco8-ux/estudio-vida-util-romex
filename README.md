@@ -1,42 +1,29 @@
 # Control de Calidad Romex — Estudio de Vida Útil
 
-**Exportadora Romex S.A.** · Planta Chincha · **v1.5.3**
+**Exportadora Romex S.A.** · Planta Chincha · **v1.5.4**
 
 Web app + API (Node/Express) · SQL Server (local) o **PostgreSQL (Render)**.
 
 ---
 
-## Publicar en Render (producción)
+## Publicar en Render (producción) — LISTO
 
-### 1. Base de datos PostgreSQL en Render
+### Opción recomendada: Blueprint (1 clic)
 
-1. [Render Dashboard](https://dashboard.render.com) → **New** → **PostgreSQL**
-2. Name: `romex-qc-db` · Plan **Free**
-3. Copia la **Internal Database URL** (o External si hace falta)
+1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
+2. Conecta el repositorio `estudio-vida-util-romex`
+3. Render lee el `render.yaml` y crea:
+   - Web Service `romex-qc`
+   - PostgreSQL `romex-qc-db`
+4. Haz clic en **Apply**
 
-### 2. Ejecutar el esquema SQL
+En el **primer arranque** la API crea sola las tablas y los usuarios (schema + seed automático).
 
-En la consola de Postgres de Render (o con `psql` y la External URL):
-
-```bash
-# Desde tu PC (con la External Database URL):
-psql "TU_EXTERNAL_DATABASE_URL" -f sql/postgres/01_schema.sql
-psql "TU_EXTERNAL_DATABASE_URL" -f sql/postgres/02_seed.sql
-```
-
-O pega el contenido de esos archivos en el **Shell** / query tool de Render.
-
-### 3. Web Service
-
-**Opción A — Blueprint (recomendado)**  
-- New → **Blueprint** → conecta el repo `estudio-vida-util-romex`  
-- Usa el `render.yaml` del repo (crea web + DB)
-
-**Opción B — Manual**
+### Opción manual
 
 | Campo | Valor |
 |--------|--------|
-| Root Directory | *(vacío, raíz del repo)* |
+| Root Directory | *(vacío)* |
 | Runtime | Node |
 | Build Command | `npm install --prefix server` |
 | Start Command | `node server/index.js` |
@@ -48,9 +35,11 @@ O pega el contenido de esos archivos en el **Shell** / query tool de Render.
 |-----|--------|
 | `NODE_ENV` | `production` |
 | `DB_TYPE` | `postgres` |
-| `DATABASE_URL` | *Link del Postgres* (o pega la URL) |
+| `DATABASE_URL` | *Link del Postgres de Render* |
 
-### 4. Usuarios iniciales (tras el seed)
+---
+
+### Usuarios iniciales
 
 | Usuario | Pass | Rol |
 |---------|------|-----|
@@ -61,7 +50,7 @@ O pega el contenido de esos archivos en el **Shell** / query tool de Render.
 
 **Cambia las contraseñas en producción.**
 
-### 5. URL
+### URL
 
 Tras el deploy: `https://romex-qc-xxxx.onrender.com`  
 Login en esa misma URL (API y frontend juntos).
@@ -85,7 +74,7 @@ Scripts SSMS: carpeta `sql/` (ver `sql/TODO_EN_UNO_SSMS.sql`).
 
 ---
 
-## Qué incluye v1.5.3
+## Qué incluye v1.5.4
 
 - Login bcrypt · roles ADMIN / LECTOR  
 - Microbiología y físicoquímico por producto / mes / año  
@@ -93,6 +82,7 @@ Scripts SSMS: carpeta `sql/` (ver `sql/TODO_EN_UNO_SSMS.sql`).
 - Gráfico 3D siembra vs mes · tendencia con línea de siembra  
 - Export CSV · comparar · auditoría · dark mode  
 - Auto-guardado · agregar mes/producto  
+- **Auto-schema + seed en PostgreSQL** (Render listo sin pasos SQL manuales)
 
 ---
 
