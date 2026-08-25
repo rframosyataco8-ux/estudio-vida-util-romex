@@ -1,6 +1,6 @@
 {
   "name": "estudio-vida-util-romex",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "private": true,
   "description": "Romex QC — frontend + API",
   "scripts": {
