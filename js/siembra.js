@@ -1,4 +1,6 @@
-/* Romex QC — siembra / punto de partida v1.5.3
+/* Romex QC — siembra / punto de partida v1.5.7
+ * Solo ADMIN puede editar la tablita de promedio de siembra (punto de partida).
+ * Etiqueta simplificada a «Siembra».
  * Lote 44260304 → 2603 → MARZO (no mayo).
  * El mes de siembra SIEMPRE aparece en tabs aunque no exista fila en BD.
  */
@@ -14,6 +16,15 @@
       micro: { rtamv: 0, mohos: 0, coliformes: 0, ecoli: 0, enterobacterias: 0, levaduras: 0, saureus: 0 },
       fisico: {}
     };
+  }
+
+  function canEditSiembra() {
+    if (typeof isAdmin !== 'undefined' && isAdmin) return true;
+    var rol = (localStorage.getItem('romex_rol') || sessionStorage.getItem('romex_rol') || '').toUpperCase();
+    if (rol === 'ADMIN') return true;
+    var u = (localStorage.getItem('romex_user_login') || sessionStorage.getItem('romex_user_login') ||
+             localStorage.getItem('romex_user') || sessionStorage.getItem('romex_user') || '').toLowerCase();
+    return u === 'admin' || u === 'rodrigo' || u === 'administrador';
   }
 
   window.romexParseLoteYYMM = function (lote) {
@@ -77,13 +88,19 @@
       avgHint = ' · RTAMV: ' + (bl.micro.rtamv != null ? bl.micro.rtamv : '—') +
         ' · Mohos: ' + (bl.micro.mohos != null ? bl.micro.mohos : '—');
     }
+    var editHint = '';
+    if (isStart && canEditSiembra()) {
+      editHint = ' · <em>Puedes editar el promedio (solo administrador)</em>';
+    } else if (isStart) {
+      editHint = ' · <em>Solo promedio de siembra (solo lectura)</em>';
+    }
     return '<div class="siembra-note' + (isStart ? ' is-start' : '') + '">' +
       '<span class="material-icons-outlined" style="font-size:16px;vertical-align:middle">science</span> ' +
-      '<strong>Punto de partida (siembra)</strong> · ' + mesNom + ' ' + (bl.anioInicio || '') +
+      '<strong>Siembra</strong> · ' + mesNom + ' ' + (bl.anioInicio || '') +
       (fecha && fecha !== '—' ? ' · Fecha: ' + fecha : '') +
       avgHint +
       (isStart
-        ? ' · <em>Solo promedio de siembra (este mes no se compara aún)</em>'
+        ? editHint
         : ' · Comparación: siembra vs resultado del mes') +
       '</div>';
   };
@@ -93,6 +110,83 @@
     if (!content || content.querySelector('.siembra-note')) return;
     if (!content.querySelector('.card')) return;
     content.insertAdjacentHTML('afterbegin', romexSiembraNoteHtml());
+  }
+
+  var siembraSaveTimer = null;
+
+  function ensureBaselineProduct(codigo) {
+    if (!window.ROMEX_BASELINES) window.ROMEX_BASELINES = { products: {} };
+    if (!window.ROMEX_BASELINES.products) window.ROMEX_BASELINES.products = {};
+    if (!window.ROMEX_BASELINES.products[codigo]) {
+      window.ROMEX_BASELINES.products[codigo] = getBl(codigo);
+    }
+    return window.ROMEX_BASELINES.products[codigo];
+  }
+
+  async function saveSiembraBaseline(mode) {
+    if (!canEditSiembra() || !activeCodigo) return;
+    var inputs = document.querySelectorAll('td input[data-siembra-f]');
+    if (!inputs.length) return;
+    var bl = ensureBaselineProduct(activeCodigo);
+    if (mode === 'fisico') {
+      if (!bl.fisico) bl.fisico = {};
+      inputs.forEach(function (inp) {
+        var k = inp.getAttribute('data-siembra-f');
+        var v = parseFloat(inp.value);
+        bl.fisico[k] = Number.isFinite(v) ? Math.round(v * 100) / 100 : null;
+      });
+    } else {
+      if (!bl.micro) bl.micro = {};
+      inputs.forEach(function (inp) {
+        var k = inp.getAttribute('data-siembra-f');
+        var v = parseInt(inp.value, 10);
+        bl.micro[k] = Number.isFinite(v) && v >= 0 ? v : 0;
+      });
+    }
+    if (typeof setSaveInd === 'function') setSaveInd('saving', 'Guardando siembra…');
+    try {
+      if (typeof api === 'function') {
+        await api('/baselines/' + encodeURIComponent(activeCodigo), {
+          method: 'PUT',
+          body: JSON.stringify({
+            micro: bl.micro,
+            fisico: bl.fisico,
+            anioInicio: bl.anioInicio,
+            mesInicio: bl.mesInicio,
+            fechaSiembra: bl.fechaSiembra || null,
+            lote: bl.lote || null
+          })
+        });
+      }
+      if (typeof setSaveInd === 'function') {
+        setSaveInd('saved', 'Siembra guardada');
+        setTimeout(function () { setSaveInd('', ''); }, 2500);
+      }
+      if (typeof snack === 'function') snack('Promedio de siembra actualizado');
+      /* Redibujar gráficos con nuevos valores */
+      var d = romexSyntheticSiembraRow(mode);
+      if (mode === 'micro' && typeof drawMicroBar === 'function') drawMicroBar(d);
+      if (mode === 'fisico' && typeof drawFisicoBar === 'function') {
+        var fields = ['humedad', 'ph', 'ceniza', 'grasa', 'fineza', 'acidez'].filter(function (k) {
+          return d[k] != null && d[k] !== '';
+        });
+        if (!fields.length) fields = ['humedad', 'ph', 'ceniza', 'grasa'];
+        drawFisicoBar(d, fields);
+      }
+      if (mode === 'micro' && typeof drawMicroTrend === 'function') drawMicroTrend();
+      if (mode === 'fisico' && typeof drawHumTrend === 'function') drawHumTrend();
+    } catch (e) {
+      if (typeof setSaveInd === 'function') setSaveInd('', '');
+      if (typeof snack === 'function') snack('Error al guardar siembra: ' + (e.message || e));
+      else alert('Error al guardar siembra: ' + (e.message || e));
+    }
+  }
+
+  function scheduleSiembraSave(mode) {
+    if (!canEditSiembra()) return;
+    clearTimeout(siembraSaveTimer);
+    if (typeof setSaveInd === 'function') setSaveInd('saving', 'Guardando…');
+    siembraSaveTimer = setTimeout(function () { saveSiembraBaseline(mode); }, 800);
   }
 
   /* —— Tendencias —— */
@@ -105,7 +199,6 @@
     }
     var rows = typeof microRows !== 'undefined' ? microRows.slice() : [];
     var bl = getBl();
-    /* Asegurar que el mes de siembra exista en la tendencia */
     if (bl.mesInicio && !rows.some(function (r) { return +r.mes === +bl.mesInicio; })) {
       rows.unshift(romexSyntheticSiembraRow('micro'));
       rows.sort(function (a, b) { return a.mes - b.mes; });
@@ -209,9 +302,7 @@
         months.push(+bl.mesInicio);
       }
       months.sort(function (a, b) { return a - b; });
-      /* NO pisar activeMonth con el primer mes de BD si el usuario/lote pide siembra */
       if (months.indexOf(+activeMonth) < 0 && months.length) {
-        /* Preferir mesInicio del lote si está en la lista */
         if (bl.mesInicio && months.indexOf(+bl.mesInicio) >= 0) {
           activeMonth = +bl.mesInicio;
         } else {
@@ -225,7 +316,7 @@
         var isSiembra = bl.mesInicio && +m === +bl.mesInicio;
         return '<button type="button" class="tab' + (m === activeMonth ? ' active' : '') +
           (isSiembra ? ' tab-siembra' : '') + '" data-m="' + m + '">' +
-          label + (isSiembra ? ' · siembra' : '') + '</button>';
+          label + (isSiembra ? ' · Siembra' : '') + '</button>';
       }).join('');
     };
 
@@ -241,32 +332,35 @@
       return res;
     };
 
-    /* 3) renderMicro: si es mes siembra y no hay fila BD → usar promedio */
+    /* 3) renderMicro: si es mes siembra y no hay fila BD → promedio (editable solo ADMIN) */
     if (typeof renderMicro === 'function') {
       var origMicro = renderMicro;
       window.renderMicro = function (p) {
         var d = typeof rowFor === 'function' ? rowFor('micro') : null;
         if (!d && romexIsStartMonth()) {
           d = romexSyntheticSiembraRow('micro');
-          /* Render mínimo + gráfico solo siembra */
-          var dis = ' disabled';
+          var admin = canEditSiembra();
+          var dis = admin ? '' : ' disabled';
+          var headNote = admin
+            ? ' <span style="font-size:10px">auto-guarda · solo administrador</span>'
+            : ' <span style="font-size:10px">solo lectura</span>';
           document.getElementById('content').innerHTML =
             '<div class="card full"><div class="doc-bar"><div><div class="doc-co">EXPORTADORA ROMEX S.A.</div>' +
-            '<div class="doc-pl">Planta Cacao Chincha · Microbiología · SIEMBRA</div></div>' +
+            '<div class="doc-pl">Planta Cacao Chincha · Microbiología · Siembra</div></div>' +
             '<div class="doc-meta">I-EVUP-R-309</div></div>' +
-            '<div class="doc-head">Punto de partida · ' + (p && p.nombre ? p.nombre : '') + ' · ' +
+            '<div class="doc-head">Siembra · ' + (p && p.nombre ? p.nombre : '') + ' · ' +
             (MONTH_NAMES[activeMonth] || activeMonth) + ' ' + activeYear + '</div>' +
             '<div class="info-grid">' +
             '<div class="info-cell"><div class="info-lbl">Producto</div><div class="info-val">' + (p && p.nombre ? p.nombre : '') + '</div></div>' +
             '<div class="info-cell"><div class="info-lbl">Lote</div><div class="info-val">' + (p && p.lote ? p.lote : '') + '</div></div>' +
             '<div class="info-cell"><div class="info-lbl">Fecha siembra</div><div class="info-val">' + (d.fecha_analisis || '—') + '</div></div>' +
             '<div class="info-cell"><div class="info-lbl">Estado</div><div class="info-val"><span class="badge warn">SIEMBRA</span></div></div></div></div>' +
-            '<div class="card full"><div class="card-title">Promedio de siembra (ufc/gr) <span style="font-size:10px">solo lectura</span></div>' +
+            '<div class="card full"><div class="card-title">Promedio de siembra (ufc/gr)' + headNote + '</div>' +
             '<div class="table-wrap"><table><thead><tr>' +
             MICRO_KEYS.map(function (k) { return '<th>' + MICRO_LABELS[k] + '</th>'; }).join('') +
             '</tr></thead><tbody><tr>' +
             MICRO_KEYS.map(function (k) {
-              return '<td><input type="number" value="' + (d[k] || 0) + '"' + dis + '></td>';
+              return '<td><input type="number" min="0" data-siembra-f="' + k + '" value="' + (d[k] || 0) + '"' + dis + '></td>';
             }).join('') +
             '</tr></tbody></table></div></div>' +
             (typeof chartCardHtml === 'function' ? chartCardHtml() : '<div class="card full"><canvas id="cMain"></canvas></div>') +
@@ -293,15 +387,20 @@
             return d[k] != null && d[k] !== '';
           });
           if (!fields.length) fields = ['humedad', 'ph', 'ceniza', 'grasa'];
+          var admin = canEditSiembra();
+          var dis = admin ? '' : ' disabled';
+          var headNote = admin
+            ? ' <span style="font-size:10px">auto-guarda · solo administrador</span>'
+            : ' <span style="font-size:10px">solo lectura</span>';
           document.getElementById('content').innerHTML =
-            '<div class="card full"><div class="doc-head">Punto de partida físicoquímico · ' +
+            '<div class="card full"><div class="doc-head">Siembra · físicoquímico · ' +
             (p && p.nombre ? p.nombre : '') + ' · ' + (MONTH_NAMES[activeMonth] || '') + ' ' + activeYear + '</div></div>' +
-            '<div class="card full"><div class="card-title">Promedio de siembra</div>' +
+            '<div class="card full"><div class="card-title">Promedio de siembra' + headNote + '</div>' +
             '<div class="table-wrap"><table><thead><tr>' +
             fields.map(function (k) { return '<th>' + (FISICO_LABELS[k] || k) + '</th>'; }).join('') +
             '</tr></thead><tbody><tr>' +
             fields.map(function (k) {
-              return '<td><input type="number" value="' + d[k] + '" disabled></td>';
+              return '<td><input type="number" step="0.01" data-siembra-f="' + k + '" value="' + d[k] + '"' + dis + '></td>';
             }).join('') +
             '</tr></tbody></table></div></div>' +
             (typeof chartCardHtml === 'function' ? chartCardHtml() : '') +
@@ -325,12 +424,19 @@
       window.drawHumTrend = function () { romexDrawFisicoTrendSiembra(); };
     }
 
+    /* Input en tabla de siembra: solo ADMIN guarda baseline */
+    document.addEventListener('input', function (e) {
+      var inp = e.target;
+      if (!inp || !inp.getAttribute || !inp.getAttribute('data-siembra-f')) return;
+      if (!canEditSiembra()) return;
+      var mode = (typeof activeMode !== 'undefined' ? activeMode : 'micro');
+      scheduleSiembraSave(mode);
+    });
+
     /* 4) Click producto: NO dejar activeMonth=5 — forzar mes del lote */
     document.addEventListener('click', function (e) {
       var ni = e.target.closest('.nav-item');
       if (ni && ni.dataset.c) {
-        /* Se ejecuta en capture; app.js pondrá activeMonth=5 después.
-           Re-aplicamos mes del lote justo antes de que loadAndShow pinte. */
         var cod = ni.dataset.c;
         setTimeout(function () {
           romexSetMonthFromBaseline(cod);
@@ -346,7 +452,7 @@
       new MutationObserver(function () { setTimeout(injectNote, 30); }).observe(content, { childList: true });
     }
 
-    console.log('[Romex siembra] v1.5.3 activo — mes inicio por lote');
+    console.log('[Romex siembra] v1.5.7 activo — edición solo ADMIN');
   }
   patch();
 })();
