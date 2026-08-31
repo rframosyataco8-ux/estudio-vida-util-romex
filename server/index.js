@@ -1,6 +1,7 @@
 /**
- * Romex QC API v1.5.5
+ * Romex QC API v1.5.7
  * Producción Render · PostgreSQL · estáticos · no-cache HTML/JS/CSS
+ * PUT /api/baselines/:codigo — solo ADMIN edita punto de partida (siembra)
  */
 'use strict';
 
@@ -8,6 +9,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
@@ -18,7 +20,7 @@ const DB_TYPE = (process.env.DB_TYPE || 'mssql').toLowerCase();
 const TOKEN_HOURS = 12;
 const BCRYPT_ROUNDS = 10;
 const IS_PROD = process.env.NODE_ENV === 'production';
-const VERSION = '1.5.5';
+const VERSION = '1.5.7';
 
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
@@ -140,6 +142,25 @@ function buildAlerts(tipo, row) {
     if (lim.min != null && n < lim.min) alerts.push({ campo: k, label: lim.label, valor: n, limite: lim.min, tipo: 'min' });
   });
   return alerts;
+}
+
+var BASELINES_PATH = path.join(__dirname, '..', 'data', 'baselines.json');
+var baselinesCache = null;
+
+function readBaselinesFile() {
+  try {
+    var raw = fs.readFileSync(BASELINES_PATH, 'utf8');
+    baselinesCache = JSON.parse(raw);
+  } catch (e) {
+    if (!baselinesCache) baselinesCache = { products: {} };
+  }
+  if (!baselinesCache.products) baselinesCache.products = {};
+  return baselinesCache;
+}
+
+function writeBaselinesFile(data) {
+  baselinesCache = data;
+  fs.writeFileSync(BASELINES_PATH, JSON.stringify(data, null, 2) + '\n', 'utf8');
 }
 
 async function ensurePostgresSchema() {
@@ -281,6 +302,7 @@ async function initDb() {
     console.log('PostgreSQL OK');
     await ensurePostgresSchema();
   }
+  try { readBaselinesFile(); } catch (e) { console.warn('baselines:', e.message); }
 }
 
 async function q(text, params) {
@@ -409,6 +431,64 @@ app.post('/api/logout', authRequired, async function (req, res) {
 
 app.get('/api/me', authRequired, function (req, res) {
   res.json({ user: req.user.usuario, nombre: req.user.nombre, rol: req.user.rol });
+});
+
+/* —— Baselines (punto de partida / promedio de siembra) —— */
+app.get('/api/baselines', authRequired, function (_req, res) {
+  try {
+    res.json(readBaselinesFile());
+  } catch (e) { res.status(500).json({ error: safeError(e) }); }
+});
+
+app.get('/api/baselines/:codigo', authRequired, function (req, res) {
+  try {
+    var data = readBaselinesFile();
+    var bl = data.products[req.params.codigo];
+    if (!bl) return res.status(404).json({ error: 'Baseline no encontrado' });
+    res.json(bl);
+  } catch (e) { res.status(500).json({ error: safeError(e) }); }
+});
+
+app.put('/api/baselines/:codigo', authRequired, adminRequired, async function (req, res) {
+  try {
+    var codigo = String(req.params.codigo || '').trim();
+    if (!codigo || !/^[a-z0-9_]+$/i.test(codigo)) {
+      return res.status(400).json({ error: 'Código inválido' });
+    }
+    var body = req.body || {};
+    var data = readBaselinesFile();
+    var prev = data.products[codigo] || {};
+    var next = {
+      lote: body.lote != null ? String(body.lote) : (prev.lote || null),
+      anioInicio: body.anioInicio != null ? clampInt(body.anioInicio, 2020, 2099, prev.anioInicio || 2026) : (prev.anioInicio || 2026),
+      mesInicio: body.mesInicio != null ? clampInt(body.mesInicio, 1, 12, prev.mesInicio || 1) : (prev.mesInicio || 1),
+      fechaSiembra: body.fechaSiembra != null ? (body.fechaSiembra || null) : (prev.fechaSiembra || null),
+      micro: prev.micro ? Object.assign({}, prev.micro) : {},
+      fisico: prev.fisico ? Object.assign({}, prev.fisico) : {}
+    };
+    if (body.micro && typeof body.micro === 'object') {
+      var vm = validateMicroBody({
+        rtamv: body.micro.rtamv != null ? body.micro.rtamv : (next.micro.rtamv || 0),
+        mohos: body.micro.mohos != null ? body.micro.mohos : (next.micro.mohos || 0),
+        coliformes: body.micro.coliformes != null ? body.micro.coliformes : (next.micro.coliformes || 0),
+        ecoli: body.micro.ecoli != null ? body.micro.ecoli : (next.micro.ecoli || 0),
+        enterobacterias: body.micro.enterobacterias != null ? body.micro.enterobacterias : (next.micro.enterobacterias || 0),
+        levaduras: body.micro.levaduras != null ? body.micro.levaduras : (next.micro.levaduras || 0),
+        saureus: body.micro.saureus != null ? body.micro.saureus : (next.micro.saureus || 0)
+      });
+      if (vm.error) return res.status(400).json({ error: vm.error });
+      next.micro = vm.data;
+    }
+    if (body.fisico && typeof body.fisico === 'object') {
+      var vf = validateFisicoBody(Object.assign({}, next.fisico, body.fisico));
+      if (vf.error) return res.status(400).json({ error: vf.error });
+      next.fisico = vf.data;
+    }
+    data.products[codigo] = next;
+    writeBaselinesFile(data);
+    await logAudit(req.user, 'UPDATE', 'baseline', codigo, next.anioInicio, next.mesInicio, next);
+    res.json({ ok: true, baseline: next });
+  } catch (e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/auditoria', authRequired, adminRequired, async function (req, res) {
