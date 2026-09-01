@@ -1,10 +1,10 @@
 {
   "name": "romex-qc-api",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "description": "Control de Calidad / Vida útil — Exportadora Romex S.A.",
   "main": "index.js",
   "scripts": {
-    "start": "node seed-monthly.js --apply || true; node index.js",
+    "start": "node run.js",
     "seed": "node seed-monthly.js --apply",
     "dev": "node index.js"
   },
