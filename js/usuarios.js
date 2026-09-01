@@ -1,10 +1,11 @@
-/* Gestión de usuarios + permisos granulares — solo admin y rodrigo */
+/* Gestión de usuarios + permisos — solo admin y rodrigo */
 'use strict';
 
 (function () {
   function $(id) { return document.getElementById(id); }
 
   var cachedUser = null;
+  var PROTECTED = { admin: true, rodrigo: true };
 
   async function getLoginUser() {
     if (cachedUser) return cachedUser;
@@ -69,53 +70,88 @@
     return h;
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   async function loadUsersList() {
     var box = $('usersList');
     if (!box) return;
-    box.innerHTML = 'Cargando…';
+    box.innerHTML = '<div class="um-loading">Cargando usuarios…</div>';
     try {
       var rows = await api('/usuarios');
       if (!rows.length) {
-        box.innerHTML = '<p>No hay usuarios.</p>';
+        box.innerHTML = '<p class="um-empty">No hay usuarios.</p>';
         return;
       }
+      var me = await getLoginUser();
       var html = '';
       rows.forEach(function (r) {
         var activo = r.activo === true || r.activo === 1 || r.activo === '1';
         var p = permFromRow(r);
-        html += '<div class="user-card" data-id="' + r.id + '" style="border:1px solid #e0e0e0;border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--md-surface-1,#fff)">' +
-          '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px">' +
-          '<strong style="min-width:90px">' + (r.usuario || '') + '</strong>' +
-          '<span style="color:#666;font-size:13px">' + (r.nombre || '') + '</span>' +
-          '<select class="user-rol" data-id="' + r.id + '" style="font-size:12px;padding:4px 8px;border-radius:6px">' +
-          '<option value="ADMIN"' + (r.rol === 'ADMIN' ? ' selected' : '') + '>ADMIN</option>' +
-          '<option value="LECTOR"' + (r.rol === 'LECTOR' ? ' selected' : '') + '>LECTOR</option>' +
-          '</select>' +
-          '<span style="font-size:12px">' + (activo ? '<span style="color:#2e7d32">● Activo</span>' : '<span style="color:#c62828">● Inactivo</span>') + '</span>' +
-          '<button type="button" class="btn-ghost user-toggle" data-id="' + r.id + '" data-activo="' + (activo ? '1' : '0') + '" style="font-size:12px;padding:4px 8px">' +
-          (activo ? 'Desactivar' : 'Activar') + '</button>' +
-          '<button type="button" class="btn-ghost user-pass" data-id="' + r.id + '" style="font-size:12px;padding:4px 8px">Clave</button>' +
-          '</div>' +
-          '<div style="display:flex;flex-wrap:wrap;gap:12px 18px;font-size:13px;align-items:center;padding:8px 0;border-top:1px solid #eee">' +
-          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="perm-check" data-id="' + r.id + '" data-k="ver_micro"' + (p.ver_micro ? ' checked' : '') + '> Microbiología</label>' +
-          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="perm-check" data-id="' + r.id + '" data-k="ver_fisico"' + (p.ver_fisico ? ' checked' : '') + '> Físicoquímico</label>' +
-          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="perm-check" data-id="' + r.id + '" data-k="editar"' + (p.editar ? ' checked' : '') + '> Puede editar</label>' +
-          '<label style="display:flex;align-items:center;gap:6px">Meses: ' +
-          '<select class="perm-mes" data-id="' + r.id + '" data-k="mes_desde">' + monthOpts(p.mes_desde) + '</select>' +
-          ' → ' +
-          '<select class="perm-mes" data-id="' + r.id + '" data-k="mes_hasta">' + monthOpts(p.mes_hasta) + '</select>' +
-          '</label>' +
-          '<button type="button" class="btn-primary perm-save" data-id="' + r.id + '" style="font-size:12px;padding:6px 12px">Guardar permisos</button>' +
-          '</div></div>';
+        var uLogin = String(r.usuario || '').toLowerCase();
+        var isProtected = !!PROTECTED[uLogin];
+        var isSelf = uLogin === me;
+        var canDelete = !isProtected && !isSelf;
+
+        html +=
+          '<article class="um-card' + (activo ? '' : ' um-card--inactive') + '" data-id="' + r.id + '">' +
+            '<div class="um-card-head">' +
+              '<div class="um-identity">' +
+                '<div class="um-avatar">' + escapeHtml((r.usuario || '?').charAt(0).toUpperCase()) + '</div>' +
+                '<div class="um-meta">' +
+                  '<div class="um-login">' + escapeHtml(r.usuario || '') + '</div>' +
+                  '<div class="um-name">' + escapeHtml(r.nombre || '') + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="um-head-actions">' +
+                '<select class="um-select user-rol" data-id="' + r.id + '" title="Rol">' +
+                  '<option value="ADMIN"' + (r.rol === 'ADMIN' ? ' selected' : '') + '>ADMIN</option>' +
+                  '<option value="LECTOR"' + (r.rol === 'LECTOR' ? ' selected' : '') + '>LECTOR</option>' +
+                '</select>' +
+                '<span class="um-badge ' + (activo ? 'um-badge--ok' : 'um-badge--off') + '">' +
+                  (activo ? 'Activo' : 'Inactivo') +
+                '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="um-perms">' +
+              '<div class="um-perms-title">Permisos</div>' +
+              '<div class="um-perms-grid">' +
+                '<label class="um-check"><input type="checkbox" class="perm-check" data-id="' + r.id + '" data-k="ver_micro"' + (p.ver_micro ? ' checked' : '') + '> Microbiología</label>' +
+                '<label class="um-check"><input type="checkbox" class="perm-check" data-id="' + r.id + '" data-k="ver_fisico"' + (p.ver_fisico ? ' checked' : '') + '> Físicoquímico</label>' +
+                '<label class="um-check"><input type="checkbox" class="perm-check" data-id="' + r.id + '" data-k="editar"' + (p.editar ? ' checked' : '') + '> Puede editar</label>' +
+                '<div class="um-months">' +
+                  '<span>Meses</span>' +
+                  '<select class="um-select perm-mes" data-id="' + r.id + '" data-k="mes_desde">' + monthOpts(p.mes_desde) + '</select>' +
+                  '<span class="um-arrow">→</span>' +
+                  '<select class="um-select perm-mes" data-id="' + r.id + '" data-k="mes_hasta">' + monthOpts(p.mes_hasta) + '</select>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="um-card-foot">' +
+              '<button type="button" class="um-btn um-btn--ghost perm-save" data-id="' + r.id + '">Guardar permisos</button>' +
+              '<div class="um-foot-right">' +
+                '<button type="button" class="um-btn um-btn--ghost user-toggle" data-id="' + r.id + '" data-activo="' + (activo ? '1' : '0') + '">' +
+                  (activo ? 'Desactivar' : 'Activar') +
+                '</button>' +
+                '<button type="button" class="um-btn um-btn--ghost user-pass" data-id="' + r.id + '">Clave</button>' +
+                (canDelete
+                  ? '<button type="button" class="um-btn um-btn--danger user-delete" data-id="' + r.id + '" data-user="' + escapeHtml(r.usuario || '') + '">Eliminar</button>'
+                  : '<button type="button" class="um-btn um-btn--ghost" disabled title="Usuario protegido">Eliminar</button>') +
+              '</div>' +
+            '</div>' +
+          '</article>';
       });
       box.innerHTML = html;
     } catch (e) {
-      box.innerHTML = '<p style="color:#c62828">' + (e.message || e) + '</p>';
+      box.innerHTML = '<p class="um-error">' + escapeHtml(e.message || e) + '</p>';
     }
   }
 
   function collectPermisos(id) {
-    var card = document.querySelector('.user-card[data-id="' + id + '"]');
+    var card = document.querySelector('.um-card[data-id="' + id + '"]');
     if (!card) return null;
     var get = function (k) {
       var el = card.querySelector('.perm-check[data-k="' + k + '"]');
@@ -152,9 +188,10 @@
         body: JSON.stringify({ usuario: usuario, nombre: nombre, password: password, rol: rol, permisos: permisos })
       });
       if (typeof snack === 'function') snack('Usuario creado');
-      $('newUserUser').value = '';
-      $('newUserNombre').value = '';
-      $('newUserPass').value = '';
+      if ($('newUserUser')) $('newUserUser').value = '';
+      if ($('newUserNombre')) $('newUserNombre').value = '';
+      if ($('newUserPass')) $('newUserPass').value = '';
+      if ($('newPermEdit')) $('newPermEdit').checked = false;
       await loadUsersList();
     } catch (e) {
       if (typeof snack === 'function') snack(e.message);
@@ -166,6 +203,18 @@
     try {
       await api('/usuarios/' + id, { method: 'PUT', body: JSON.stringify(body) });
       if (typeof snack === 'function') snack('Actualizado');
+      await loadUsersList();
+    } catch (e) {
+      if (typeof snack === 'function') snack(e.message);
+      else alert(e.message);
+    }
+  }
+
+  async function deleteUser(id, usuario) {
+    if (!confirm('¿Eliminar permanentemente al usuario «' + usuario + '»?\nEsta acción no se puede deshacer.')) return;
+    try {
+      await api('/usuarios/' + id, { method: 'DELETE' });
+      if (typeof snack === 'function') snack('Usuario eliminado');
       await loadUsersList();
     } catch (e) {
       if (typeof snack === 'function') snack(e.message);
@@ -186,6 +235,11 @@
       var np = prompt('Nueva contraseña (mín. 4 caracteres):');
       if (np && np.length >= 4) updateUser(passBtn.getAttribute('data-id'), { password: np });
       else if (np) alert('Mínimo 4 caracteres');
+      return;
+    }
+    var delBtn = e.target.closest('.user-delete');
+    if (delBtn) {
+      deleteUser(delBtn.getAttribute('data-id'), delBtn.getAttribute('data-user') || '');
       return;
     }
     var saveP = e.target.closest('.perm-save');
