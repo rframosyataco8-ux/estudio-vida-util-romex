@@ -7,6 +7,18 @@
   var cachedUser = null;
   var PROTECTED = { admin: true, rodrigo: true };
 
+  function normalizeLogin(raw) {
+    var s = String(raw || '').trim().toLowerCase();
+    try {
+      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    } catch (e) {}
+    s = s.replace(/\s+/g, '');
+    s = s.replace(/[^a-z0-9._-]/g, '');
+    s = s.replace(/[._-]{2,}/g, '.');
+    s = s.replace(/^[._-]+|[._-]+$/g, '');
+    return s;
+  }
+
   async function getLoginUser() {
     if (cachedUser) return cachedUser;
     try {
@@ -171,8 +183,10 @@
   }
 
   async function createUser() {
-    var usuario = ($('newUserUser') || {}).value || '';
-    var nombre = ($('newUserNombre') || {}).value || '';
+    var rawUser = (($('newUserUser') || {}).value || '').trim();
+    var usuario = normalizeLogin(rawUser);
+    var nombre = (($('newUserNombre') || {}).value || '').trim();
+    if (!nombre && rawUser) nombre = rawUser;
     var password = ($('newUserPass') || {}).value || '';
     var rol = ($('newUserRol') || {}).value || 'LECTOR';
     var permisos = {
@@ -182,12 +196,31 @@
       mes_desde: parseInt(($('newPermDesde') || {}).value || '1', 10),
       mes_hasta: parseInt(($('newPermHasta') || {}).value || '12', 10)
     };
+
+    if (!usuario || usuario.length < 3) {
+      var msg = 'Usuario inválido. Ejemplo: ing.nereyda (sin espacios)';
+      if (typeof snack === 'function') snack(msg); else alert(msg);
+      return;
+    }
+    if (!password || password.length < 4) {
+      var m2 = 'Contraseña mín. 4 caracteres';
+      if (typeof snack === 'function') snack(m2); else alert(m2);
+      return;
+    }
+    if (!nombre || nombre.length < 2) {
+      var m3 = 'Completa el nombre completo';
+      if (typeof snack === 'function') snack(m3); else alert(m3);
+      return;
+    }
+
+    if ($('newUserUser')) $('newUserUser').value = usuario;
+
     try {
       await api('/usuarios', {
         method: 'POST',
         body: JSON.stringify({ usuario: usuario, nombre: nombre, password: password, rol: rol, permisos: permisos })
       });
-      if (typeof snack === 'function') snack('Usuario creado');
+      if (typeof snack === 'function') snack('Usuario creado: ' + usuario);
       if ($('newUserUser')) $('newUserUser').value = '';
       if ($('newUserNombre')) $('newUserNombre').value = '';
       if ($('newUserPass')) $('newUserPass').value = '';
@@ -221,6 +254,13 @@
       else alert(e.message);
     }
   }
+
+  document.addEventListener('blur', function (e) {
+    if (e.target && e.target.id === 'newUserUser') {
+      var n = normalizeLogin(e.target.value);
+      if (n) e.target.value = n;
+    }
+  }, true);
 
   document.addEventListener('click', function (e) {
     if (e.target.closest('#usersBtn')) { window.openUsersModal(); return; }
