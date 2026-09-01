@@ -4,13 +4,8 @@
  * Mes siguiente a siembra → diciembre.
  * Variación pequeña hasta julio; desde agosto aumenta ligeramente.
  * Idempotente: no inserta filas que ya existen.
+ * CLI: node seed-monthly.js --apply
  */
-
-function clamp(n, min, max) {
-  if (n < min) return min;
-  if (n > max) return max;
-  return n;
-}
 
 function round2(n) {
   return Math.round(n * 100) / 100;
@@ -189,3 +184,51 @@ module.exports = {
   buildMonths: buildMonths,
   defaultBaselines: defaultBaselines
 };
+
+/* CLI: node seed-monthly.js --apply */
+if (require.main === module && process.argv.indexOf('--apply') >= 0) {
+  (async function () {
+    try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch (e) {}
+    try { require('dotenv').config(); } catch (e2) {}
+    var DB_TYPE = (process.env.DB_TYPE || 'postgres').toLowerCase();
+    var pool = null;
+    async function q(text, params) {
+      params = params || [];
+      if (DB_TYPE === 'mssql') {
+        var req = pool.request();
+        params.forEach(function (v, i) { req.input('p' + i, v); });
+        var i = 0;
+        var mssqlText = text.replace(/\$(\d+)/g, function () { return '@p' + (i++); });
+        var r = await req.query(mssqlText);
+        return { rows: r.recordset || [], rowsAffected: (r.rowsAffected && r.rowsAffected[0]) || 0 };
+      }
+      var pr = await pool.query(text, params);
+      return { rows: pr.rows || [], rowsAffected: pr.rowCount || 0 };
+    }
+    try {
+      if (DB_TYPE === 'mssql') {
+        var sql = require('mssql');
+        pool = await sql.connect({
+          server: process.env.MSSQL_SERVER || 'localhost',
+          database: process.env.MSSQL_DATABASE || 'RomexQC',
+          user: process.env.MSSQL_USER || 'sa',
+          password: process.env.MSSQL_PASSWORD || '',
+          options: { encrypt: process.env.MSSQL_ENCRYPT === 'true', trustServerCertificate: true }
+        });
+      } else {
+        var Pool = require('pg').Pool;
+        pool = new Pool({
+          connectionString: process.env.DATABASE_URL,
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        });
+        await pool.query('SELECT 1');
+      }
+      var n = await seedMonthlyResults(q, DB_TYPE, defaultBaselines());
+      console.log('Seed mensual OK. Filas insertadas:', n);
+      process.exit(0);
+    } catch (e) {
+      console.error('Seed falló:', e.message);
+      process.exit(1);
+    }
+  })();
+}
