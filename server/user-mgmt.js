@@ -1,15 +1,6 @@
 /**
  * Gestión de usuarios + permisos granulares
  * Solo admin y rodrigo
- *
- * permisos JSON:
- * {
- *   ver_micro: true|false,
- *   ver_fisico: true|false,
- *   editar: true|false,
- *   mes_desde: 1-12,
- *   mes_hasta: 1-12
- * }
  */
 'use strict';
 
@@ -41,6 +32,19 @@ function normalizePermisos(p, rol) {
     mes_desde: md,
     mes_hasta: mh
   };
+}
+
+/** Login limpio: minúsculas, sin acentos, sin espacios, solo a-z 0-9 . _ - */
+function normalizeLogin(raw) {
+  var s = String(raw || '').trim().toLowerCase();
+  try {
+    s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  } catch (e) {}
+  s = s.replace(/\s+/g, '');
+  s = s.replace(/[^a-z0-9._-]/g, '');
+  s = s.replace(/[._-]{2,}/g, '.');
+  s = s.replace(/^[._-]+|[._-]+$/g, '');
+  return s;
 }
 
 module.exports = function registerUserMgmt(app, deps) {
@@ -96,18 +100,37 @@ module.exports = function registerUserMgmt(app, deps) {
   app.post('/api/usuarios', authRequired, superUserRequired, async function (req, res) {
     try {
       await ensurePermisosColumn();
-      var usuario = String(req.body.usuario || '').trim().toLowerCase();
+      var rawUser = String(req.body.usuario || '').trim();
+      var usuario = normalizeLogin(rawUser);
       var password = String(req.body.password || '');
       var nombre = String(req.body.nombre || '').trim();
+      if (!nombre && rawUser) nombre = rawUser;
       var rol = String(req.body.rol || 'LECTOR').toUpperCase();
       var permisos = normalizePermisos(req.body.permisos, rol);
-      if (!usuario || usuario.length < 3) return res.status(400).json({ error: 'Usuario inválido (mín. 3 caracteres)' });
-      if (!/^[a-z0-9._-]+$/.test(usuario)) return res.status(400).json({ error: 'Usuario solo letras, números, . _ -' });
-      if (!password || password.length < 4) return res.status(400).json({ error: 'Contraseña mín. 4 caracteres' });
-      if (!nombre || nombre.length < 2) return res.status(400).json({ error: 'Nombre obligatorio' });
-      if (rol !== 'ADMIN' && rol !== 'LECTOR') return res.status(400).json({ error: 'Rol debe ser ADMIN o LECTOR' });
+
+      if (!usuario || usuario.length < 3) {
+        return res.status(400).json({
+          error: 'Usuario inválido. Usa al menos 3 caracteres (ej. ing.nereyda). Sin espacios.'
+        });
+      }
+      if (!/^[a-z0-9._-]+$/.test(usuario)) {
+        return res.status(400).json({
+          error: 'Usuario solo letras, números y . _ - (sin espacios). Ejemplo: ing.nereyda'
+        });
+      }
+      if (!password || password.length < 4) {
+        return res.status(400).json({ error: 'Contraseña mín. 4 caracteres' });
+      }
+      if (!nombre || nombre.length < 2) {
+        return res.status(400).json({ error: 'Nombre completo obligatorio' });
+      }
+      if (rol !== 'ADMIN' && rol !== 'LECTOR') {
+        return res.status(400).json({ error: 'Rol debe ser ADMIN o LECTOR' });
+      }
+
       var hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
       var permStr = JSON.stringify(permisos);
+
       if (DB_TYPE === 'mssql') {
         var exists = await q('SELECT Id FROM dbo.Usuarios WHERE LOWER(Usuario)=@p0', [usuario]);
         if (exists.rows.length) return res.status(409).json({ error: 'Ese usuario ya existe' });
@@ -118,9 +141,13 @@ module.exports = function registerUserMgmt(app, deps) {
         await logAudit(req.user, 'CREATE', 'usuario', usuario, null, null, { nombre: nombre, rol: rol, permisos: permisos });
         return res.status(201).json(out);
       }
+
       var exists2 = await q('SELECT id FROM usuarios WHERE LOWER(usuario)=$1', [usuario]);
       if (exists2.rows.length) return res.status(409).json({ error: 'Ese usuario ya existe' });
-      var r2 = await q('INSERT INTO usuarios (usuario, password_hash, nombre, rol, permisos) VALUES ($1,$2,$3,$4,$5) RETURNING id, usuario, nombre, rol, activo, permisos', [usuario, hash, nombre, rol, permStr]);
+      var r2 = await q(
+        'INSERT INTO usuarios (usuario, password_hash, nombre, rol, permisos) VALUES ($1,$2,$3,$4,$5) RETURNING id, usuario, nombre, rol, activo, permisos',
+        [usuario, hash, nombre, rol, permStr]
+      );
       var out2 = r2.rows[0];
       out2.permisos = normalizePermisos(out2.permisos, out2.rol);
       await logAudit(req.user, 'CREATE', 'usuario', usuario, null, null, { nombre: nombre, rol: rol, permisos: permisos });
