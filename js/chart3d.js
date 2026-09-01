@@ -32,6 +32,7 @@ var FISICO_3D_COLORS = {
 var _romexAnimId = 0;
 var _romexRaf = 0;
 var _romexLastDraw = null;
+var _romexResizeBound = false;
 
 function _hexRgb(hex) {
   hex = String(hex || '#888888').replace('#', '');
@@ -108,6 +109,36 @@ function romexTheme() {
   };
 }
 
+function romexCategoryScales(series, nCat) {
+  var catMax = [];
+  var globalMax = 0;
+  for (var i = 0; i < nCat; i++) {
+    var m = 0;
+    for (var s = 0; s < series.length; s++) {
+      var v = (series[s].values && series[s].values[i] != null) ? Math.abs(+series[s].values[i]) : 0;
+      if (v > m) m = v;
+    }
+    if (m <= 0) m = 1;
+    catMax[i] = m;
+    if (m > globalMax) globalMax = m;
+  }
+  if (globalMax <= 0) globalMax = 1;
+
+  var minCat = Infinity;
+  for (var j = 0; j < nCat; j++) {
+    if (catMax[j] < minCat) minCat = catMax[j];
+  }
+  var ratio = globalMax / (minCat || 1);
+  var usePerCat = ratio > 8;
+
+  return {
+    usePerCat: usePerCat,
+    catMax: catMax,
+    globalMax: globalMax,
+    scaleMax: globalMax * 1.18
+  };
+}
+
 function romexPaint3D(canvas, labels, series, title, progress) {
   if (!canvas) return false;
   if (progress == null || progress > 1) progress = 1;
@@ -115,14 +146,15 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   var th = romexTheme();
 
   var box = canvas.parentElement;
-  var W = Math.max(400, (box && box.clientWidth) ? Math.floor(box.clientWidth) : 760);
-  var H = 480;
-  if (W < 640) H = 400;
-  if (W < 420) H = 340;
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var W = Math.max(360, (box && box.clientWidth) ? Math.floor(box.clientWidth - 4) : 760);
+  var H = 520;
+  if (W < 700) H = 460;
+  if (W < 480) H = 400;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
 
   canvas.style.display = 'block';
   canvas.style.width = '100%';
+  canvas.style.maxWidth = '100%';
   canvas.style.height = H + 'px';
   canvas.width = Math.floor(W * dpr);
   canvas.height = Math.floor(H * dpr);
@@ -151,34 +183,43 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   var nSer = series.length;
   if (!nCat) return true;
 
-  var padL = 64, padR = 28, padT = 64, padB = 118;
+  var padL = 58, padR = 24, padT = 62, padB = 128;
   var plotW = W - padL - padR;
   var plotH = H - padT - padB;
   var baseY = padT + plotH;
 
-  var maxV = 0;
-  series.forEach(function (s) {
-    (s.values || []).forEach(function (v) {
-      if (+v > maxV) maxV = +v;
-    });
-  });
-  if (maxV <= 0) maxV = 1;
-  var scaleMax = maxV * 1.22;
+  var scales = romexCategoryScales(series, nCat);
+  var scaleMax = scales.scaleMax;
 
   ctx.font = '10px Roboto, system-ui, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  for (var g = 0; g <= 5; g++) {
-    var gy = padT + (plotH * g) / 5;
-    var val = scaleMax * (1 - g / 5);
-    ctx.strokeStyle = g === 5 ? th.gridBase : th.grid;
-    ctx.lineWidth = g === 5 ? 1.4 : 1;
-    ctx.beginPath();
-    ctx.moveTo(padL, gy);
-    ctx.lineTo(W - padR, gy);
-    ctx.stroke();
-    ctx.fillStyle = th.axisText;
-    ctx.fillText(fmtVal(val), padL - 10, gy);
+  if (scales.usePerCat) {
+    for (var g = 0; g <= 5; g++) {
+      var gy = padT + (plotH * g) / 5;
+      var pct = Math.round((1 - g / 5) * 100);
+      ctx.strokeStyle = g === 5 ? th.gridBase : th.grid;
+      ctx.lineWidth = g === 5 ? 1.4 : 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, gy);
+      ctx.lineTo(W - padR, gy);
+      ctx.stroke();
+      ctx.fillStyle = th.axisText;
+      ctx.fillText(pct === 0 ? '0' : pct + '%', padL - 8, gy);
+    }
+  } else {
+    for (var g2 = 0; g2 <= 5; g2++) {
+      var gy2 = padT + (plotH * g2) / 5;
+      var val = scaleMax * (1 - g2 / 5);
+      ctx.strokeStyle = g2 === 5 ? th.gridBase : th.grid;
+      ctx.lineWidth = g2 === 5 ? 1.4 : 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, gy2);
+      ctx.lineTo(W - padR, gy2);
+      ctx.stroke();
+      ctx.fillStyle = th.axisText;
+      ctx.fillText(fmtVal(val), padL - 8, gy2);
+    }
   }
 
   var depthX = 11;
@@ -194,7 +235,7 @@ function romexPaint3D(canvas, labels, series, title, progress) {
 
   var groupW = plotW / nCat;
   var barGap = nSer > 1 ? 9 : 0;
-  var barW = Math.min(38, Math.max(13, (groupW * 0.52 - barGap * (nSer - 1)) / nSer));
+  var barW = Math.min(40, Math.max(14, (groupW * 0.55 - barGap * (nSer - 1)) / nSer));
   var stagger = 0.55;
 
   function catProgress(i) {
@@ -204,7 +245,7 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   }
 
   function drawColumn(x, yBottom, w, h, color) {
-    if (h < 1.5) h = 1.5;
+    if (h < 2) h = 2;
     var top = yBottom - h;
     var side = darken(color, 0.28);
     var lid = lighten(color, 0.34);
@@ -253,24 +294,26 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   }
 
   var valueLabels = [];
+  var usableH = plotH - 22;
 
   for (var i = 0; i < nCat; i++) {
     var cp = catProgress(i);
     var groupCenter = padL + i * groupW + groupW / 2;
     var totalBarsW = nSer * barW + (nSer - 1) * barGap;
     var startX = groupCenter - totalBarsW / 2;
+    var denom = scales.usePerCat ? (scales.catMax[i] * 1.08) : scaleMax;
 
     for (var s = 0; s < nSer; s++) {
       var v = (series[s].values && series[s].values[i] != null) ? +series[s].values[i] : 0;
-      var fullH = (v / scaleMax) * (plotH - 18);
-      if (v > 0 && fullH < 4) fullH = 4;
-      if (v === 0) fullH = 2;
+      var fullH = (Math.abs(v) / denom) * usableH;
+      if (v > 0 && fullH < 12) fullH = 12;
+      if (v === 0) fullH = 3;
       var serDelay = s * 0.12;
       var sp = easeOutExpo(clamp01((cp - serDelay) / (1 - serDelay + 0.001)));
       var h = fullH * sp;
       var x = startX + s * (barW + barGap);
       var col = (s === 0) ? th.siembra : ((series[s].colors && series[s].colors[i]) ? series[s].colors[i] : (series[s].color || '#42a5f5'));
-      var top = drawColumn(x, baseY, barW, Math.max(h, 1), col);
+      var top = drawColumn(x, baseY, barW, Math.max(h, 2), col);
 
       valueLabels.push({
         x: x + barW / 2 + depthX * 0.35,
@@ -283,14 +326,14 @@ function romexPaint3D(canvas, labels, series, title, progress) {
 
     ctx.globalAlpha = Math.min(1, progress * 1.4);
     ctx.fillStyle = th.catText;
-    ctx.font = '500 10.5px Roboto, system-ui, sans-serif';
+    ctx.font = '500 11px Roboto, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(shortLabel(labels[i]), groupCenter, baseY + 18);
+    ctx.fillText(shortLabel(labels[i]), groupCenter, baseY + 16);
     ctx.globalAlpha = 1;
   }
 
-  ctx.font = '600 9px Roboto, system-ui, sans-serif';
+  ctx.font = '600 10px Roboto, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   valueLabels.forEach(function (vl) {
@@ -306,7 +349,15 @@ function romexPaint3D(canvas, labels, series, title, progress) {
   ctx.lineTo(W - padR, baseY);
   ctx.stroke();
 
-  var legendY = H - 26;
+  if (scales.usePerCat && progress > 0.9) {
+    ctx.fillStyle = th.sub;
+    ctx.font = '400 10px Roboto, system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Escala relativa por parámetro (valores reales en barras)', W - padR, 44);
+  }
+
+  var legendY = H - 28;
   ctx.font = '500 11.5px Roboto, system-ui, sans-serif';
   var parts = [];
   var totalW = 0;
@@ -347,6 +398,7 @@ function romexPaint3D(canvas, labels, series, title, progress) {
 function romexAnimate3D(canvas, labels, series, title) {
   if (!canvas) return false;
   _romexLastDraw = { canvas: canvas, labels: labels, series: series, title: title };
+  romexEnsureResize();
   if (_romexRaf) {
     cancelAnimationFrame(_romexRaf);
     _romexRaf = 0;
@@ -376,7 +428,30 @@ function romexRedrawTheme() {
   romexPaint3D(d.canvas, d.labels, d.series, d.title, 1);
 }
 
-/* Redibujar al cambiar tema claro/oscuro */
+function romexEnsureResize() {
+  if (_romexResizeBound) return;
+  _romexResizeBound = true;
+  var t = null;
+  function schedule() {
+    if (t) clearTimeout(t);
+    t = setTimeout(function () {
+      t = null;
+      romexRedrawTheme();
+    }, 120);
+  }
+  window.addEventListener('resize', schedule);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', schedule);
+  }
+  try {
+    if (typeof ResizeObserver !== 'undefined' && _romexLastDraw && _romexLastDraw.canvas) {
+      var ro = new ResizeObserver(schedule);
+      var parent = _romexLastDraw.canvas.parentElement;
+      if (parent) ro.observe(parent);
+    }
+  } catch (e) {}
+}
+
 (function watchTheme() {
   try {
     var obs = new MutationObserver(function () {
