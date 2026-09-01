@@ -11,12 +11,13 @@
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.5.7">
-<link rel="stylesheet" href="css/dark.css?v=1.5.7">
-<link rel="stylesheet" href="css/chart-fix.css?v=1.5.7">
-<link rel="stylesheet" href="css/ui-v15.css?v=1.5.7">
-<link rel="stylesheet" href="css/siembra.css?v=1.5.7">
-<script src="js/boot-cache.js?v=1.5.7"></script>
+<link rel="stylesheet" href="css/styles.css?v=1.5.9">
+<link rel="stylesheet" href="css/dark.css?v=1.5.9">
+<link rel="stylesheet" href="css/chart-fix.css?v=1.5.9">
+<link rel="stylesheet" href="css/ui-v15.css?v=1.5.9">
+<link rel="stylesheet" href="css/siembra.css?v=1.5.9">
+<link rel="stylesheet" href="css/usuarios.css?v=1.5.9">
+<script src="js/boot-cache.js?v=1.5.9"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
@@ -44,7 +45,6 @@
   .empty-state strong { display: block; font-size: 15px; color: var(--md-text, #1a2332); margin-bottom: 8px; }
   .badge.warn { background: #fff3e0; color: #e65100; }
   .badge.danger { background: #ffebee; color: #c62828; }
-  .user-rol { font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid #ccc; }
 </style>
 <script>document.documentElement.classList.add('romex-boot');</script>
 </head>
@@ -78,7 +78,7 @@
       <span class="material-icons-outlined">science</span>
       <div>
         <div class="drawer-title">Romex QC</div>
-        <div class="drawer-sub">Vida útil · v1.5.7</div>
+        <div class="drawer-sub">Vida útil · v1.5.9</div>
       </div>
     </div>
     <div class="drawer-body">
@@ -250,47 +250,59 @@
   </div>
 
   <div class="modal-backdrop" id="modalUsers" hidden>
-    <div class="modal" role="dialog" style="max-width:820px">
+    <div class="modal" role="dialog">
       <div class="modal-head">
-        <h2>Gestión de usuarios y permisos</h2>
+        <h2>Gestión de usuarios</h2>
         <button type="button" class="modal-close" data-close="modalUsers">&times;</button>
       </div>
       <div class="modal-body">
-        <h3 class="modal-section">Crear usuario</h3>
-        <div class="form-grid" style="margin-bottom:12px">
-          <label>Usuario <input type="text" id="newUserUser" placeholder="ej. juan" autocomplete="off"></label>
-          <label>Nombre <input type="text" id="newUserNombre" placeholder="Nombre completo"></label>
-          <label>Contraseña <input type="password" id="newUserPass" placeholder="mín. 4 caracteres"></label>
-          <label>Rol
-            <select id="newUserRol">
-              <option value="LECTOR">LECTOR</option>
-              <option value="ADMIN">ADMIN</option>
-            </select>
-          </label>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;font-size:13px;align-items:center">
-          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="newPermMicro" checked> Microbiología</label>
-          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="newPermFisico" checked> Físicoquímico</label>
-          <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="newPermEdit"> Puede editar</label>
-          <label>Meses:
-            <select id="newPermDesde">
-              <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
-              <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
-              <option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option>
-              <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dic</option>
-            </select>
-            →
-            <select id="newPermHasta">
-              <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
-              <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
-              <option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option>
-              <option value="10">Oct</option><option value="11">Nov</option><option value="12" selected>Dic</option>
-            </select>
-          </label>
-        </div>
-        <button type="button" class="btn-primary" id="saveNewUserBtn" style="margin-bottom:20px">Crear usuario</button>
-        <h3 class="modal-section">Usuarios existentes</h3>
-        <div id="usersList">—</div>
+        <section class="um-section um-create">
+          <h3 class="um-section-title">Crear usuario</h3>
+          <div class="um-create-grid">
+            <label class="um-field">Usuario
+              <input type="text" id="newUserUser" placeholder="ej. juan" autocomplete="off">
+            </label>
+            <label class="um-field">Nombre completo
+              <input type="text" id="newUserNombre" placeholder="Nombre completo">
+            </label>
+            <label class="um-field">Contraseña
+              <input type="password" id="newUserPass" placeholder="mín. 4 caracteres">
+            </label>
+            <label class="um-field">Rol
+              <select id="newUserRol">
+                <option value="LECTOR">LECTOR</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+            </label>
+          </div>
+          <div class="um-create-perms">
+            <label class="um-check"><input type="checkbox" id="newPermMicro" checked> Microbiología</label>
+            <label class="um-check"><input type="checkbox" id="newPermFisico" checked> Físicoquímico</label>
+            <label class="um-check"><input type="checkbox" id="newPermEdit"> Puede editar</label>
+            <div class="um-months">
+              <span>Meses</span>
+              <select class="um-select" id="newPermDesde">
+                <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
+                <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
+                <option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option>
+                <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dic</option>
+              </select>
+              <span class="um-arrow">→</span>
+              <select class="um-select" id="newPermHasta">
+                <option value="1">Ene</option><option value="2">Feb</option><option value="3">Mar</option>
+                <option value="4">Abr</option><option value="5">May</option><option value="6">Jun</option>
+                <option value="7">Jul</option><option value="8">Ago</option><option value="9">Sep</option>
+                <option value="10">Oct</option><option value="11">Nov</option><option value="12" selected>Dic</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" class="um-btn um-btn--primary" id="saveNewUserBtn">Crear usuario</button>
+        </section>
+
+        <section class="um-section">
+          <h3 class="um-section-title">Usuarios existentes</h3>
+          <div id="usersList" class="um-list">—</div>
+        </section>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn-ghost" data-close="modalUsers">Cerrar</button>
@@ -311,13 +323,13 @@
       }
     })();
   </script>
-  <script src="js/chart3d.js?v=1.5.7"></script>
-  <script src="js/siembra.js?v=1.5.7"></script>
-  <script src="js/app.js?v=1.5.7"></script>
-  <script src="js/app-v151.js?v=1.5.7"></script>
-  <script src="js/extras.js?v=1.5.7"></script>
-  <script src="js/ui-v15.js?v=1.5.7"></script>
-  <script src="js/usuarios.js?v=1.5.7"></script>
-  <script src="js/permisos.js?v=1.5.7"></script>
+  <script src="js/chart3d.js?v=1.5.9"></script>
+  <script src="js/siembra.js?v=1.5.9"></script>
+  <script src="js/app.js?v=1.5.9"></script>
+  <script src="js/app-v151.js?v=1.5.9"></script>
+  <script src="js/extras.js?v=1.5.9"></script>
+  <script src="js/ui-v15.js?v=1.5.9"></script>
+  <script src="js/usuarios.js?v=1.5.9"></script>
+  <script src="js/permisos.js?v=1.5.9"></script>
 </body>
 </html>
