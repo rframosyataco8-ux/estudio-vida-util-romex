@@ -52,6 +52,7 @@ module.exports = function registerUserMgmt(app, deps) {
   var logAudit = deps.logAudit;
   var safeError = deps.safeError;
   var schemaReady = false;
+  var PROTECTED_USERS = { admin: true, rodrigo: true };
 
   function superUserRequired(req, res, next) {
     var u = String(req.user && req.user.usuario || '').toLowerCase();
@@ -182,7 +183,36 @@ module.exports = function registerUserMgmt(app, deps) {
     } catch (e) { res.status(500).json({ error: safeError(e) }); }
   });
 
-  // /api/me ampliado con permisos (sin romper el existente)
+  app.delete('/api/usuarios/:id', authRequired, superUserRequired, async function (req, res) {
+    try {
+      var id = parseInt(req.params.id, 10);
+      if (!id) return res.status(400).json({ error: 'Id inválido' });
+      if (req.user.id === id) {
+        return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
+      }
+      var cur;
+      if (DB_TYPE === 'mssql') {
+        cur = await q('SELECT Id as id, Usuario as usuario FROM dbo.Usuarios WHERE Id=@p0', [id]);
+      } else {
+        cur = await q('SELECT id, usuario FROM usuarios WHERE id=$1', [id]);
+      }
+      if (!cur.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+      var usuario = String(cur.rows[0].usuario || '').toLowerCase();
+      if (PROTECTED_USERS[usuario]) {
+        return res.status(403).json({ error: 'No se puede eliminar el usuario protegido «' + usuario + '»' });
+      }
+      if (DB_TYPE === 'mssql') {
+        await q('DELETE FROM dbo.Sesiones WHERE UsuarioId=@p0', [id]);
+        await q('DELETE FROM dbo.Usuarios WHERE Id=@p0', [id]);
+      } else {
+        await q('DELETE FROM sesiones WHERE usuario_id=$1', [id]);
+        await q('DELETE FROM usuarios WHERE id=$1', [id]);
+      }
+      await logAudit(req.user, 'DELETE', 'usuario', usuario, null, null, {});
+      res.json({ ok: true, usuario: usuario });
+    } catch (e) { res.status(500).json({ error: safeError(e) }); }
+  });
+
   app.get('/api/me/permisos', authRequired, async function (req, res) {
     try {
       await ensurePermisosColumn();
@@ -199,7 +229,6 @@ module.exports = function registerUserMgmt(app, deps) {
       var permisos = isSuper
         ? { ver_micro: true, ver_fisico: true, editar: true, mes_desde: 1, mes_hasta: 12 }
         : normalizePermisos(row.permisos, row.rol || req.user.rol);
-      // ADMIN genérico puede editar salvo que se restrinja explícitamente
       if (String(row.rol || req.user.rol).toUpperCase() === 'ADMIN' && !isSuper && row.permisos == null) {
         permisos = defaultPermisos('ADMIN');
       }
