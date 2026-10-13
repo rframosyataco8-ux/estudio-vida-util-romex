@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Restaura el index.js original del commit estable (sin parches de reset).
+ * Carga el index.js del commit estable 3f3e419 (comportamiento original).
  */
 const fs = require('fs');
 const path = require('path');
@@ -22,15 +22,12 @@ function download(url) {
 }
 
 async function main() {
-  // Siempre reescribe con el original limpio (sin RESET_ADMIN_PASS ni v1.5.8)
   var url = 'https://raw.githubusercontent.com/rframosyataco8-ux/estudio-vida-util-romex/3f3e419457900dcf6dedff0e4e21e24004e20f13/server/index.js';
-  console.log('[revert] Restaurando index.js original...');
   var text = await download(url);
   fs.writeFileSync(real, text);
-  console.log('[revert] index-real.js restaurado (' + text.length + ' bytes)');
   require(real);
 }
 main().catch(function (e) {
-  console.error('[revert] FATAL', e);
+  console.error(e);
   process.exit(1);
 });
